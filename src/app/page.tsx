@@ -119,6 +119,7 @@ export default function Home() {
   }, []);
 
   const [mapLoaded, setMapLoaded] = useState(false);
+  const [mapLoadError, setMapLoadError] = useState(false);
   const [isMobile, setIsMobile] = useState(false);
   const [courses, setCourses] = useState<Course[]>([]);
   const [isLoading, setIsLoading] = useState(true);
@@ -501,13 +502,25 @@ export default function Home() {
 
   useEffect(() => {
     if (mapLoaded) return;
+    
+    // 5초 이상 로딩이 안되면 에러 상태로 간주
+    const timeout = setTimeout(() => {
+      if (!mapLoaded) {
+        setMapLoadError(true);
+      }
+    }, 5000);
+
     const interval = setInterval(() => {
       if (window.kakao && window.kakao.maps) {
         clearInterval(interval);
+        clearTimeout(timeout);
         initMap();
       }
     }, 500);
-    return () => clearInterval(interval);
+    return () => {
+      clearInterval(interval);
+      clearTimeout(timeout);
+    };
   }, [mapLoaded]);
 
   // 코스 그리기 (도로망 연동 반영)
@@ -1480,10 +1493,27 @@ export default function Home() {
       <div className="flex-1 w-full relative bg-slate-900">
         {(!mapLoaded || isLoading) && (
           <div className="absolute inset-0 flex flex-col items-center justify-center bg-slate-950/80 backdrop-blur-sm z-20">
-            <span className="text-4xl animate-spin mb-4">🌀</span>
-            <p className="text-slate-300 font-bold">
-              {isLoading ? "코스 데이터를 불러오는 중..." : "지도를 불러오는 중..."}
-            </p>
+            {mapLoadError ? (
+              <div className="flex flex-col items-center p-6 bg-slate-800/80 rounded-2xl border border-rose-500/30 text-center max-w-sm mx-4">
+                <span className="text-4xl mb-3">⚠️</span>
+                <h3 className="text-rose-400 font-bold text-lg mb-2">지도 로딩 실패</h3>
+                <p className="text-slate-300 text-sm leading-relaxed">
+                  카카오 지도 API 인증 에러입니다.<br/>
+                  현재 구동 중인 로컬 포트(<strong className="text-white">localhost:3001</strong>)가 카카오 디벨로퍼스에 
+                  허용된 도메인으로 등록되어 있지 않아서 발생하는 문제입니다.
+                </p>
+                <p className="text-slate-400 text-xs mt-3 bg-slate-900/50 p-2 rounded w-full">
+                  💡 <strong>해결 방법:</strong> 현재 실행 중인 다른 서버(3000번 포트)를 끄고 <strong>이 앱을 3000번으로 재실행</strong>하시거나, 카카오 디벨로퍼스에 3001번 포트를 추가해 주세요!
+                </p>
+              </div>
+            ) : (
+              <>
+                <span className="text-4xl animate-spin mb-4">🌀</span>
+                <p className="text-slate-300 font-bold">
+                  {isLoading ? "코스 데이터를 불러오는 중..." : "지도를 불러오는 중..."}
+                </p>
+              </>
+            )}
           </div>
         )}
         <div id="map" ref={mapContainerRef} className="w-full h-full bg-slate-900"></div>

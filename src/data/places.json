@@ -1329,5 +1329,170 @@
     "firstFoliage": "09.25",
     "peakFoliage": "10.11",
     "waypoints": "대둔산 케이블카,36.1213,127.3175"
+  },
+  {
+    "id": 122,
+    "title": "무주 덕유산 곤돌라",
+    "description": "아름다운 가을 정취를 듬뿍 느낄 수 있는 무주 덕유산 곤돌라입니다.",
+    "theme": "케이블카",
+    "tags": "#무주, #케이블카",
+    "imageUrl": "https://images.unsplash.com/photo-1541336318489-083c7a0ac166?auto=format&fit=crop&q=80&w=800",
+    "firstFoliage": "10.16",
+    "peakFoliage": "11.01",
+    "waypoints": "무주 덕유산 곤돌라,35.8943,127.7554"
+  },
+  {
+    "id": 123,
+    "title": "평창 용평리조트 발왕산 케이블카",
+    "description": "아름다운 가을 정취를 듬뿍 느낄 수 있는 평창 용평리조트 발왕산 케이블카입니다.",
+    "theme": "케이블카",
+    "tags": "#평창, #케이블카",
+    "imageUrl": "https://images.unsplash.com/photo-1464822759023-fed622ff2c3b?auto=format&fit=crop&q=80&w=800",
+    "firstFoliage": "09.19",
+    "peakFoliage": "10.14",
+    "waypoints": "평창 용평리조트 발왕산 케이블카,37.6441,128.6698"
+  },
+  {
+    "id": 124,
+    "title": "정선 가리왕산 케이블카",
+    "description": "아름다운 가을 정취를 듬뿍 느낄 수 있는 정선 가리왕산 케이블카입니다.",
+    "theme": "케이블카",
+    "tags": "#정선, #케이블카",
+    "imageUrl": "https://images.unsplash.com/photo-1541336318489-083c7a0ac166?auto=format&fit=crop&q=80&w=800",
+    "firstFoliage": "09.26",
+    "peakFoliage": "10.01",
+    "waypoints": "정선 가리왕산 케이블카,37.4567,128.5678"
+  },
+  {
+    "id": 125,
+    "title": "화성 제부도 해상케이블카",
+    "description": "아름다운 가을 정취를 듬뿍 느낄 수 있는 화성 제부도 해상케이블카입니다.",
+    "theme": "케이블카",
+    "tags": "#화성, #케이블카",
+    "imageUrl": "https://images.unsplash.com/photo-1464822759023-fed622ff2c3b?auto=format&fit=crop&q=80&w=800",
+    "firstFoliage": "10.13",
+    "peakFoliage": "10.06",
+    "waypoints": "화성 제부도 해상케이블카,37.1659,126.6341"
+  },
+  {
+    "id": 126,
+    "title": "울릉도 도동 약수터 케이블카",
+    "description": "아름다운 가을 정취를 듬뿍 느낄 수 있는 울릉도 도동 약수터 케이블카입니다.",
+    "theme": "케이블카",
+    "tags": "#울릉도, #케이블카",
+    "imageUrl": "https://images.unsplash.com/photo-1507371341162-763b5e419408?auto=format&fit=crop&q=80&w=800",
+    "firstFoliage": "09.02",
+    "peakFoliage": "10.28",
+    "waypoints": "울릉도 도동 약수터 케이블카,37.4831,130.9067"
+  },
+  {
+    "id": 127,
+    "title": "진도 명량해상케이블카",
+    "description": "아름다운 가을 정취를 듬뿍 느낄 수 있는 진도 명량해상케이블카입니다.",
+    "theme": "케이블카",
+    "tags": "#진도, #케이블카",
+    "imageUrl": "https://images.unsplash.com/photo-1507371341162-763b5e419408?auto=format&fit=crop&q=80&w=800",
+    "firstFoliage": "09.22",
+    "peakFoliage": "10.08",
+    "waypoints": "진도 명량해상케이블카,34.5684,126.3051"
+  },
+  {
+    "id": 128,
+    "title": "영천 보현산 댐 짚와이어/모노레일",
+    "description": "아름다운 가을 정취를 듬뿍 느낄 수 있는 영천 보현산 댐 짚와이어/모노레일입니다.",
+    "theme": "케이블카",
+    "tags": "#영천, #모노레일",
+    "imageUrl": "https://images.unsplash.com/photo-1464822759023-fed622ff2c3b?auto=format&fit=crop&q=80&w=800",
+    "firstFoliage": "09.20",
+    "peakFoliage": "11.28",
+    "waypoints": "영천 보현산 댐 짚와이어/모노레일,36.1423,128.9412"
+  },
+  {
+    "id": 129,
+    "title": "밀양 얼음골 케이블카",
+    "description": "아름다운 가을 정취를 듬뿍 느낄 수 있는 밀양 얼음골 케이블카입니다.",
+    "theme": "케이블카",
+    "tags": "#밀양, #케이블카",
+    "imageUrl": "https://images.unsplash.com/photo-1541336318489-083c7a0ac166?auto=format&fit=crop&q=80&w=800",
+    "firstFoliage": "09.18",
+    "peakFoliage": "10.21",
+    "waypoints": "밀양 얼음골 케이블카,35.5861,128.9863"
+  },
+  {
+    "id": 130,
+    "title": "강진 가우도 짚트랙/모노레일",
+    "description": "아름다운 가을 정취를 듬뿍 느낄 수 있는 강진 가우도 짚트랙/모노레일입니다.",
+    "theme": "케이블카",
+    "tags": "#강진, #모노레일",
+    "imageUrl": "https://images.unsplash.com/photo-1541336318489-083c7a0ac166?auto=format&fit=crop&q=80&w=800",
+    "firstFoliage": "09.14",
+    "peakFoliage": "10.23",
+    "waypoints": "강진 가우도 짚트랙/모노레일,34.5671,126.7456"
+  },
+  {
+    "id": 131,
+    "title": "완주 대둔산 케이블카",
+    "description": "아름다운 가을 정취를 듬뿍 느낄 수 있는 완주 대둔산 케이블카입니다.",
+    "theme": "케이블카",
+    "tags": "#완주, #케이블카",
+    "imageUrl": "https://images.unsplash.com/photo-1507371341162-763b5e419408?auto=format&fit=crop&q=80&w=800",
+    "firstFoliage": "09.01",
+    "peakFoliage": "10.21",
+    "waypoints": "완주 대둔산 케이블카,36.1213,127.3175"
+  },
+  {
+    "id": 132,
+    "title": "단양 만천하 스카이워크 모노레일",
+    "description": "아름다운 가을 정취를 듬뿍 느낄 수 있는 단양 만천하 스카이워크 모노레일입니다.",
+    "theme": "케이블카",
+    "tags": "#단양, #모노레일",
+    "imageUrl": "https://images.unsplash.com/photo-1541336318489-083c7a0ac166?auto=format&fit=crop&q=80&w=800",
+    "firstFoliage": "10.02",
+    "peakFoliage": "11.08",
+    "waypoints": "단양 만천하 스카이워크 모노레일,36.9856,128.3456"
+  },
+  {
+    "id": 133,
+    "title": "동해 도째비골 스카이밸리",
+    "description": "아름다운 가을 정취를 듬뿍 느낄 수 있는 동해 도째비골 스카이밸리입니다.",
+    "theme": "케이블카",
+    "tags": "#동해, #모노레일",
+    "imageUrl": "https://images.unsplash.com/photo-1507371341162-763b5e419408?auto=format&fit=crop&q=80&w=800",
+    "firstFoliage": "10.14",
+    "peakFoliage": "10.19",
+    "waypoints": "동해 도째비골 스카이밸리,37.5312,129.1123"
+  },
+  {
+    "id": 134,
+    "title": "합천 영상테마파크 모노레일",
+    "description": "아름다운 가을 정취를 듬뿍 느낄 수 있는 합천 영상테마파크 모노레일입니다.",
+    "theme": "케이블카",
+    "tags": "#합천, #모노레일",
+    "imageUrl": "https://images.unsplash.com/photo-1541336318489-083c7a0ac166?auto=format&fit=crop&q=80&w=800",
+    "firstFoliage": "09.20",
+    "peakFoliage": "11.13",
+    "waypoints": "합천 영상테마파크 모노레일,35.5689,128.1456"
+  },
+  {
+    "id": 135,
+    "title": "거창 항노화힐링랜드 모노레일",
+    "description": "아름다운 가을 정취를 듬뿍 느낄 수 있는 거창 항노화힐링랜드 모노레일입니다.",
+    "theme": "케이블카",
+    "tags": "#거창, #모노레일",
+    "imageUrl": "https://images.unsplash.com/photo-1507371341162-763b5e419408?auto=format&fit=crop&q=80&w=800",
+    "firstFoliage": "09.13",
+    "peakFoliage": "10.13",
+    "waypoints": "거창 항노화힐링랜드 모노레일,35.7812,127.9456"
+  },
+  {
+    "id": 136,
+    "title": "울산 영남알프스 얼음골 케이블카",
+    "description": "아름다운 가을 정취를 듬뿍 느낄 수 있는 울산 영남알프스 얼음골 케이블카입니다.",
+    "theme": "케이블카",
+    "tags": "#울산, #케이블카",
+    "imageUrl": "https://images.unsplash.com/photo-1541336318489-083c7a0ac166?auto=format&fit=crop&q=80&w=800",
+    "firstFoliage": "09.12",
+    "peakFoliage": "11.09",
+    "waypoints": "울산 영남알프스 얼음골 케이블카,35.5861,128.9863"
   }
 ]
