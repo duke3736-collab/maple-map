@@ -590,77 +590,72 @@ export default function Home() {
           markersRef.current.push(customOverlay);
         });
 
-        // 2. 도로에 밀착된 선(Polyline) 그리기
-        let pathCoordinates: any[] = [];
-        let realDistance: number | undefined;
-        let realDuration: number | undefined;
-        
-        if (cachedPathsRef.current[course.id]) {
-          // 이미 한 번 구한 적 있으면 캐시 사용 (빠름)
-          pathCoordinates = cachedPathsRef.current[course.id].path;
-          drawPolyline(course, pathCoordinates, waypoints, isSelected);
+        // 2. 도로에 밀착된 선(Polyline) 그리기 (2곳 이상일 때만)
+        if (waypoints.length > 1) {
+          let pathCoordinates: any[] = [];
+          let realDistance: number | undefined;
+          let realDuration: number | undefined;
           
-          // 모바일 기기에서 메인 스레드(UI) 프리징을 막고 부드러운 순차 렌더링(폭포수 효과)을 위해 아주 짧은 휴식(yield) 부여
-          await new Promise(resolve => setTimeout(resolve, 15));
-        } else {
-          // 카카오 API 속도 제한(Rate Limit)을 피하기 위해 딜레이 추가
-          await new Promise(resolve => setTimeout(resolve, 200));
+          if (cachedPathsRef.current[course.id]) {
+            pathCoordinates = cachedPathsRef.current[course.id].path;
+            drawPolyline(course, pathCoordinates, waypoints, isSelected);
+            await new Promise(resolve => setTimeout(resolve, 15));
+          } else {
+            await new Promise(resolve => setTimeout(resolve, 200));
 
-          try {
-            const res = await fetch('/api/directions', {
-              method: 'POST',
-              headers: { 'Content-Type': 'application/json' },
-              body: JSON.stringify({ waypoints })
-            });
-            const naviData = await res.json();
-            
-            if (naviData.routes && naviData.routes.length > 0) {
-              const route = naviData.routes[0];
-              realDistance = route.summary.distance; // 미터 단위
-              realDuration = route.summary.duration; // 초 단위
-
-              // 데이터 오류(산꼭대기 등 차량 불가 지역)로 인해 전국을 우회하는 200km 이상 비정상 경로 방어
-              const testPolyline = new window.kakao.maps.Polyline({ 
-                path: waypoints.map((wp: any) => new window.kakao.maps.LatLng(wp.lat, wp.lng)) 
+            try {
+              const res = await fetch('/api/directions', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ waypoints })
               });
-              const straightDist = testPolyline.getLength();
-              if (realDistance && realDistance > straightDist * 5) {
-                console.warn("Unreasonable route distance detected, falling back to straight line.");
-                throw new Error("Unreasonable route distance");
+              const naviData = await res.json();
+              
+              if (naviData.routes && naviData.routes.length > 0) {
+                const route = naviData.routes[0];
+                realDistance = route.summary.distance;
+                realDuration = route.summary.duration;
+
+                const testPolyline = new window.kakao.maps.Polyline({ 
+                  path: waypoints.map((wp: any) => new window.kakao.maps.LatLng(wp.lat, wp.lng)) 
+                });
+                const straightDist = testPolyline.getLength();
+                if (realDistance && realDistance > straightDist * 5) {
+                  throw new Error("Unreasonable route distance");
+                }
+
+                const sections = route.sections;
+                sections.forEach((section: any) => {
+                  section.roads.forEach((road: any) => {
+                    for (let i = 0; i < road.vertexes.length; i += 2) {
+                      const lng = road.vertexes[i];
+                      const lat = road.vertexes[i+1];
+                      pathCoordinates.push(new window.kakao.maps.LatLng(lat, lng));
+                    }
+                  });
+                });
+              } else {
+                pathCoordinates = waypoints.map((wp: any) => new window.kakao.maps.LatLng(wp.lat, wp.lng));
+                const polyline = new window.kakao.maps.Polyline({ path: pathCoordinates });
+                const straightDist = polyline.getLength();
+                realDistance = straightDist * 1.3;
+                realDuration = (realDistance / 40000) * 3600;
               }
 
-              const sections = route.sections;
-              sections.forEach((section: any) => {
-                section.roads.forEach((road: any) => {
-                  for (let i = 0; i < road.vertexes.length; i += 2) {
-                    const lng = road.vertexes[i];
-                    const lat = road.vertexes[i+1];
-                    pathCoordinates.push(new window.kakao.maps.LatLng(lat, lng));
-                  }
-                });
-              });
-            } else {
-              // 실패 시 직선 폴백 및 가상 거리/시간 계산
+              cachedPathsRef.current[course.id] = { path: pathCoordinates, distance: realDistance, duration: realDuration };
+              drawPolyline(course, pathCoordinates, waypoints, isSelected);
+
+            } catch (e) {
+              console.error("Directions API failed, using fallback", e);
               pathCoordinates = waypoints.map((wp: any) => new window.kakao.maps.LatLng(wp.lat, wp.lng));
               const polyline = new window.kakao.maps.Polyline({ path: pathCoordinates });
-              const straightDist = polyline.getLength(); // 미터 단위
-              realDistance = straightDist * 1.3; // 직선거리의 1.3배를 실제 도로 거리로 보정 추정
-              realDuration = (realDistance / 40000) * 3600; // 평균 시속 40km 기준으로 초 단위 시간 추정
+              const straightDist = polyline.getLength();
+              const fallbackDistance = straightDist * 1.3;
+              const fallbackDuration = (fallbackDistance / 40000) * 3600;
+              
+              cachedPathsRef.current[course.id] = { path: pathCoordinates, distance: fallbackDistance, duration: fallbackDuration };
+              drawPolyline(course, pathCoordinates, waypoints, isSelected);
             }
-
-            cachedPathsRef.current[course.id] = { path: pathCoordinates, distance: realDistance, duration: realDuration };
-            drawPolyline(course, pathCoordinates, waypoints, isSelected);
-
-          } catch (e) {
-            console.error("Directions API failed, using fallback", e);
-            pathCoordinates = waypoints.map((wp: any) => new window.kakao.maps.LatLng(wp.lat, wp.lng));
-            const polyline = new window.kakao.maps.Polyline({ path: pathCoordinates });
-            const straightDist = polyline.getLength();
-            const fallbackDistance = straightDist * 1.3;
-            const fallbackDuration = (fallbackDistance / 40000) * 3600;
-            
-            cachedPathsRef.current[course.id] = { path: pathCoordinates, distance: fallbackDistance, duration: fallbackDuration };
-            drawPolyline(course, pathCoordinates, waypoints, isSelected);
           }
         }
       }
