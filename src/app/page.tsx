@@ -1023,12 +1023,12 @@ export default function Home() {
     <div className="fixed inset-0 w-full flex flex-col md:flex-row bg-slate-950 overflow-hidden" style={{ position: 'fixed', inset: 0, width: '100vw', height: '100vh', overflow: 'hidden' }}>
       {/* 이니셜 D 감성의 메인 스플래시 화면 */}
       {showSplash && (
-        <div className="absolute inset-0 z-50 bg-slate-950 flex flex-col items-center justify-center overflow-hidden">
+        <div className="absolute inset-0 z-[9999] bg-slate-950 flex flex-col items-center justify-center overflow-hidden">
           <div 
-            className="absolute inset-0 bg-cover bg-center opacity-70 scale-105"
+            className="absolute inset-0 bg-cover bg-center opacity-70 scale-105 pointer-events-none"
             style={{ backgroundImage: "url('/images/hero.png')" }}
           ></div>
-          <div className="absolute inset-0 bg-gradient-to-t from-slate-950 via-slate-950/40 to-transparent"></div>
+          <div className="absolute inset-0 bg-gradient-to-t from-slate-950 via-slate-950/40 to-transparent pointer-events-none"></div>
           
           <div className="relative z-[999] text-center px-6 mt-32 pointer-events-auto">
             <span className="inline-block bg-indigo-600 text-white font-black px-5 py-2 rounded-full text-sm mb-6 shadow-lg shadow-indigo-500/50">
