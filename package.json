@@ -9,9 +9,15 @@
     "lint": "eslint"
   },
   "dependencies": {
+    "cheerio": "^1.2.0",
+    "framer-motion": "^12.40.0",
+    "google-auth-library": "^10.6.2",
+    "googleapis": "^173.0.0",
+    "lucide-react": "^1.17.0",
     "next": "16.2.6",
     "react": "19.2.4",
-    "react-dom": "19.2.4"
+    "react-dom": "19.2.4",
+    "react-spring-bottom-sheet": "^3.4.1"
   },
   "devDependencies": {
     "@tailwindcss/postcss": "^4",
