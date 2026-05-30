@@ -545,20 +545,20 @@ export default function Home() {
 
       for (const course of filteredCourses) {
         const waypoints = parseWaypoints(course.waypoints);
-        if (waypoints.length < 2) continue;
+        if (waypoints.length === 0) continue;
         
         const isSelected = selectedCourse?.id === course.id;
 
         // 1. 마커 그리기
-        [waypoints[0], waypoints[waypoints.length - 1]].forEach((wp, idx) => {
+        waypoints.forEach((wp, idx) => {
           const isStart = idx === 0;
           const contentNode = document.createElement('div');
           contentNode.innerHTML = `
             <div class="relative flex flex-col items-center cursor-pointer transition-transform hover:scale-110 z-10 ${isSelected ? 'scale-125 z-20' : ''}" style="transform: scale(var(--marker-scale, 1)); transform-origin: bottom center;">
-              <div class="bg-slate-900 border-2 ${isStart ? 'border-indigo-400' : 'border-rose-400'} text-white text-xs md:text-sm font-bold px-3 py-1 rounded-full shadow-lg mb-1 whitespace-nowrap">
+              <div class="bg-slate-900 border-2 ${isStart ? 'border-orange-400' : 'border-rose-400'} text-white text-xs md:text-sm font-bold px-3 py-1 rounded-full shadow-lg mb-1 whitespace-nowrap">
                 ${wp.name}
               </div>
-              <div class="w-5 h-5 rounded-full ${isStart ? 'bg-indigo-500' : 'bg-rose-500'} border-[3px] border-white shadow-md"></div>
+              <div class="w-5 h-5 rounded-full ${isStart ? 'bg-orange-500' : 'bg-rose-500'} border-[3px] border-white shadow-md"></div>
             </div>
           `;
           contentNode.onclick = () => handleCourseClick(course, waypoints);
