@@ -1044,7 +1044,7 @@ export default function Home() {
               onClick={() => setShowSplash(false)}
               className="relative z-[1000] cursor-pointer bg-white text-slate-900 font-black text-xl px-12 py-5 rounded-full shadow-2xl hover:scale-105 hover:bg-slate-100 transition-all border-4 border-slate-200"
             >
-              길 안내 시작하기 🏁
+              단풍 명소 둘러보기 🍁
             </button>
           </div>
         </div>
