@@ -52,6 +52,12 @@ export default function RootLayout({
     <html lang="ko" style={{ position: 'fixed', inset: 0, overflow: 'hidden', backgroundColor: '#291c0e', width: '100vw', height: '100vh', touchAction: 'none' }}>
       <head>
         <Script
+          async
+          src="https://pagead2.googlesyndication.com/pagead/js/adsbygoogle.js?client=ca-pub-6635245275061755"
+          crossOrigin="anonymous"
+          strategy="afterInteractive"
+        />
+        <Script
           strategy="afterInteractive"
           src={`https://www.googletagmanager.com/gtag/js?id=G-HXGF6RRRQT`}
         />

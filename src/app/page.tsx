@@ -182,6 +182,24 @@ export default function Home() {
     return R * c; // 단위: km
   };
 
+  // 거리 포맷 헬퍼 함수
+  const formatDistance = (meters: number) => {
+    if (meters >= 1000) {
+      return (meters / 1000).toFixed(1) + 'km';
+    }
+    return meters + 'm';
+  };
+
+  // 날짜 포맷 헬퍼 함수
+  const formatDate = (dateStr: string) => {
+    if (!dateStr || dateStr === "미정") return "미정";
+    if (dateStr.includes(".")) {
+      const [m, d] = dateStr.split(".");
+      return `${parseInt(m, 10)}월 ${parseInt(d, 10)}일`;
+    }
+    return dateStr;
+  };
+
   const handleSortByDistance = () => {
     if (isSortedByDistance) {
       setIsSortedByDistance(false);
@@ -857,13 +875,13 @@ export default function Home() {
           <div className="flex items-center gap-2">
             <span className="text-slate-400 text-xs">🍁 첫단풍</span>
             <span className="font-bold text-orange-400">
-              {selectedCourse.firstFoliage || "미정"}
+              {formatDate(selectedCourse.firstFoliage || "미정")}
             </span>
           </div>
           <div className="flex items-center gap-2">
             <span className="text-slate-400 text-xs">👑 절정기</span>
             <span className="font-bold text-rose-500">
-              {selectedCourse.peakFoliage || "미정"}
+              {formatDate(selectedCourse.peakFoliage || "미정")}
             </span>
           </div>
         </div>
@@ -1428,8 +1446,8 @@ export default function Home() {
                     </div>
                     <p className="text-slate-300 text-xs line-clamp-2 mb-2">{course.description}</p>
                     <div className="flex flex-wrap gap-2 items-center">
-                      <span className="text-xs text-orange-400 font-bold">🍁 첫단풍: {course.firstFoliage || "미정"}</span>
-                      <span className="text-xs text-rose-500 font-bold">👑 절정기: {course.peakFoliage || "미정"}</span>
+                      <span className="text-xs text-orange-400 font-bold">🍁 첫단풍: {formatDate(course.firstFoliage || "미정")}</span>
+                      <span className="text-xs text-rose-500 font-bold">👑 절정기: {formatDate(course.peakFoliage || "미정")}</span>
                       {course._distanceToUser !== undefined && (
                         <span className="text-[10px] bg-red-500/20 text-red-400 px-1.5 py-0.5 rounded-sm font-bold border border-red-500/30">
                           약 {course._distanceToUser.toFixed(1)}km
@@ -1454,7 +1472,7 @@ export default function Home() {
           <div className="mt-auto pt-6 w-full shrink-0">
             <div className="w-full h-[250px] bg-slate-800/50 rounded-xl overflow-hidden shadow-sm">
               <AdBanner 
-                dataAdSlot="4564542487" 
+                dataAdSlot="1273604121" 
                 dataAdFormat="auto" 
                 dataFullWidthResponsive={true} 
               />
@@ -1534,7 +1552,7 @@ export default function Home() {
             <span className="text-xs text-slate-500 font-bold mb-2">SPONSORED</span>
             <div className="w-full h-[250px] bg-slate-800 rounded-lg overflow-hidden flex items-center justify-center border border-slate-700">
               <AdBanner 
-                dataAdSlot="4564542487" 
+                dataAdSlot="1273604121" 
                 dataAdFormat="auto" 
                 dataFullWidthResponsive={true} 
               />
