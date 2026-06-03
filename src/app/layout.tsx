@@ -35,7 +35,7 @@ export const metadata: Metadata = {
   verification: {
     google: "구글_서치콘솔_인증키를_여기에_넣어주세요", // 구글 서치콘솔 HTML 태그 인증키 입력
     other: {
-      "naver-site-verification": ["3faa2ef84f296409fbaf72f26f3836e630fc369a"], // 이미 네이버 서치어드바이저 키가 들어가 있습니다. 필요시 변경하세요.
+      "naver-site-verification": ["f8f9d0a1e0a685829d500e448a281005e600b6f1"], // 네이버 서치어드바이저 인증키 반영
     },
   },
 };
