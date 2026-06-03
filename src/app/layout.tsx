@@ -7,14 +7,17 @@ export const metadata: Metadata = {
   description: "2026년 단풍 시기와 전국 단풍 명소, 핑크뮬리, 억새 축제 등 가을 여행지 추천 지도를 한눈에 확인하세요. 주말 당일치기 단풍 드라이브 코스도 제공합니다.",
   keywords: "2026 단풍 시기, 전국 단풍 명소, 가을 여행지 추천, 단풍 드라이브, 핑크뮬리 명소, 도심 속 단풍 산책, 주말 당일치기 단풍, 가을 데이트",
   manifest: "/manifest.json",
+  icons: {
+    apple: "/apple-touch-icon.png",
+  },
   openGraph: {
     title: "단풍 맵 | 2026 가을 단풍 명소 지도",
     description: "2026년 단풍 시기, 전국 단풍 명소와 핑크뮬리 스팟을 지도에서 한눈에 찾아보세요!",
-    url: "https://maple-map.vercel.app", // 배포될 Vercel URL
+    url: "https://maple.weknews.com", // 배포될 도메인 URL
     siteName: "단풍 맵(Maple Map)",
     images: [
       {
-        url: "https://maple-map.vercel.app/images/hero.png",
+        url: "https://maple.weknews.com/images/hero.png",
         width: 1200,
         height: 630,
         alt: "단풍 맵 메인 이미지",
@@ -27,11 +30,12 @@ export const metadata: Metadata = {
     card: 'summary_large_image',
     title: "단풍 맵 | 2026 가을 단풍 명소 지도",
     description: "2026년 단풍 시기, 전국 단풍 명소와 핑크뮬리 스팟을 지도에서 한눈에 찾아보세요!",
-    images: ['https://maple-map.vercel.app/images/hero.png'],
+    images: ['https://maple.weknews.com/images/hero.png'],
   },
   verification: {
+    google: "구글_서치콘솔_인증키를_여기에_넣어주세요", // 구글 서치콘솔 HTML 태그 인증키 입력
     other: {
-      "naver-site-verification": ["3faa2ef84f296409fbaf72f26f3836e630fc369a"],
+      "naver-site-verification": ["3faa2ef84f296409fbaf72f26f3836e630fc369a"], // 이미 네이버 서치어드바이저 키가 들어가 있습니다. 필요시 변경하세요.
     },
   },
 };
@@ -82,11 +86,11 @@ export default function RootLayout({
               "@context": "https://schema.org",
               "@type": "WebSite",
               "name": "단풍 맵 (Maple Map)",
-              "url": "https://maple-map.vercel.app",
+              "url": "https://maple.weknews.com",
               "description": "2026년 전국 단풍 명소, 핑크뮬리, 억새 축제 지도",
               "potentialAction": {
                 "@type": "SearchAction",
-                "target": "https://maple-map.vercel.app/?q={search_term_string}",
+                "target": "https://maple.weknews.com/?q={search_term_string}",
                 "query-input": "required name=search_term_string"
               }
             })

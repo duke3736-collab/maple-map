@@ -3,7 +3,7 @@ import { MetadataRoute } from 'next';
 export default function sitemap(): MetadataRoute.Sitemap {
   return [
     {
-      url: 'https://maple-map.vercel.app',
+      url: 'https://maple.weknews.com',
       lastModified: new Date(),
       changeFrequency: 'daily',
       priority: 1,

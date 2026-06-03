@@ -54,3 +54,52 @@ html, body {
     pointer-events: none !important;
   }
 }
+
+/* 반응형 지도 마커 로직 (줌 아웃 상태) */
+body.map-zoomed-out .marker-label {
+  display: none !important;
+}
+body.map-zoomed-out .marker-dot {
+  display: none !important;
+}
+body.map-zoomed-out .marker-icon-only {
+  display: flex !important;
+}
+
+/* Hover 시 오버라이드 (마우스 올리면 텍스트 다시 표시) */
+body.map-zoomed-out .marker-group:hover .marker-label {
+  display: block !important;
+  position: absolute;
+  bottom: 100%;
+  margin-bottom: 4px;
+  z-index: 50;
+}
+body.map-zoomed-out .marker-group:hover .marker-icon-only {
+  transform: scale(1.2);
+  z-index: 50;
+}
+
+/* 프리미엄 글래스모피즘 카드 스타일 */
+.premium-glass {
+  background: rgba(15, 23, 42, 0.45) !important;
+  backdrop-filter: blur(16px) saturate(180%) !important;
+  -webkit-backdrop-filter: blur(16px) saturate(180%) !important;
+  border: 1px solid rgba(255, 255, 255, 0.08) !important;
+}
+
+/* 세련된 커스텀 스크롤바 */
+.custom-scrollbar::-webkit-scrollbar {
+  width: 6px;
+  height: 6px;
+}
+.custom-scrollbar::-webkit-scrollbar-track {
+  background: transparent;
+}
+.custom-scrollbar::-webkit-scrollbar-thumb {
+  background: rgba(255, 255, 255, 0.12);
+  border-radius: 9999px;
+}
+.custom-scrollbar::-webkit-scrollbar-thumb:hover {
+  background: rgba(255, 255, 255, 0.25);
+}
+

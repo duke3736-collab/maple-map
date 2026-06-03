@@ -7,6 +7,6 @@ export default function robots(): MetadataRoute.Robots {
       allow: '/',
       disallow: '/private/',
     },
-    sitemap: 'https://maple-map.vercel.app/sitemap.xml',
+    sitemap: 'https://maple.weknews.com/sitemap.xml',
   };
 }

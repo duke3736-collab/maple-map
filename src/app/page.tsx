@@ -3,10 +3,10 @@
 import { useEffect, useState, useRef } from "react";
 import Script from "next/script";
 import { motion, AnimatePresence } from "framer-motion";
-import { BottomSheet } from 'react-spring-bottom-sheet';
-import 'react-spring-bottom-sheet/dist/style.css';
 import AdBanner from "@/components/AdBanner";
 import PWAInstallButton from "@/components/PWAInstallButton";
+import FestivalPanel from "@/components/FestivalPanel";
+import WeatherInfo from "@/components/WeatherInfo";
 
 declare global {
   interface Window {
@@ -28,6 +28,9 @@ interface Course {
   waypoints: string;
   imageUrl?: string;
   _distanceToUser?: number;
+  difficulty?: string;
+  parking?: string;
+  accessibility?: string;
 }
 
 interface ParsedWaypoint {
@@ -47,6 +50,19 @@ const parseWaypoints = (str: string): ParsedWaypoint[] => {
     };
   });
 };
+
+const calculateDistance = (lat1: number, lon1: number, lat2: number, lon2: number) => {
+  const R = 6371; // 지구의 반지름 (km)
+  const dLat = (lat2 - lat1) * (Math.PI / 180);
+  const dLon = (lon2 - lon1) * (Math.PI / 180);
+  const a = 
+    Math.sin(dLat/2) * Math.sin(dLat/2) +
+    Math.cos(lat1 * (Math.PI / 180)) * Math.cos(lat2 * (Math.PI / 180)) * 
+    Math.sin(dLon/2) * Math.sin(dLon/2);
+  const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1-a));
+  return R * c; // 단위: km
+};
+
 
 declare global {
   interface Window {
@@ -101,62 +117,226 @@ export default function Home() {
   const mapRef = useRef<any>(null);
   const polylinesRef = useRef<any[]>([]);
   const markersRef = useRef<any[]>([]);
+  const prevSelectedMobileRef = useRef<Course | null>(null);
+  const prevSelectedCommonRef = useRef<Course | null>(null);
   const myLocationMarkerRef = useRef<any>(null);
-  // 이미 서버에서 받아온 도로 좌표 및 실시간 거리/시간 캐싱
   const cachedPathsRef = useRef<Record<number, { path: any[], distance?: number, duration?: number }>>({});
-  
-  // 주행 모드용 Refs
+  const foliageCirclesRef = useRef<any[]>([]);
   const driveMarkerRef = useRef<any>(null);
   const watchIdRef = useRef<number | null>(null);
   const wakeLockRef = useRef<any>(null);
+  const foliagePlayRef = useRef<ReturnType<typeof setInterval> | null>(null);
 
-  // 모바일 여부 체크 (PC에서 BottomSheet 마운트 해제용)
-  useEffect(() => {
-    const checkMobile = () => setIsMobile(window.innerWidth < 768);
-    checkMobile(); // 초기 체크
-    window.addEventListener('resize', checkMobile);
-    return () => window.removeEventListener('resize', checkMobile);
-  }, []);
-
+  const [isMounted, setIsMounted] = useState(false);
+  const [activeTab, setActiveTab] = useState<'list' | 'map'>('list');
   const [mapLoaded, setMapLoaded] = useState(false);
   const [mapLoadError, setMapLoadError] = useState(false);
+  const [mapZoomLevel, setMapZoomLevel] = useState(13);
   const [isMobile, setIsMobile] = useState(false);
+  const [foliageTestDate, setFoliageTestDate] = useState<string>('');
+  const [isPlayingFoliage, setIsPlayingFoliage] = useState(false);
   const [courses, setCourses] = useState<Course[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [selectedCourse, setSelectedCourse] = useState<Course | null>(null);
+  const [isSheetMinimized, setIsSheetMinimized] = useState(false);
   const [activeTheme, setActiveTheme] = useState<string>("all");
   const [activeRegion, setActiveRegion] = useState<string>("all");
   const [activeCuration, setActiveCuration] = useState<string | null>(null);
   const [searchQuery, setSearchQuery] = useState<string>("");
   const [showSplash, setShowSplash] = useState(true);
   const [isHeaderVisible, setIsHeaderVisible] = useState(true);
-
-  // 문의하기 모달 상태
   const [isInquiryModalOpen, setIsInquiryModalOpen] = useState(false);
   const [inquiryType, setInquiryType] = useState('코스 제안/오류 수정');
   const [inquiryContent, setInquiryContent] = useState('');
   const [isSubmitting, setIsSubmitting] = useState(false);
-
-  // 즐겨찾기 상태 (localStorage 연동)
   const [favorites, setFavorites] = useState<number[]>([]);
-  // 위치 기반 정렬 상태
   const [userLocation, setUserLocation] = useState<{lat: number, lng: number} | null>(null);
   const [isSortedByDistance, setIsSortedByDistance] = useState(false);
   const [isLocating, setIsLocating] = useState(false);
   const [isLocatingMap, setIsLocatingMap] = useState(false);
-
-  // 주행 모드 상태
   const [isDriveMode, setIsDriveMode] = useState(false);
   const [showDriveCompleteModal, setShowDriveCompleteModal] = useState(false);
   const [driveLocation, setDriveLocation] = useState<{lat: number, lng: number} | null>(null);
 
-  // 초기 렌더링 시 localStorage에서 찜 목록 불러오기
+  // Derived state for filtering
+  let filteredCourses = courses.filter(c => {
+    // 1. 에디터 추천 명예의 전당
+    if (activeCuration === 'ranking') {
+      if (!EDITOR_PICKS.includes(c.id)) return false;
+    }
+    
+    // 2. 상황별 맞춤 큐레이션 (기획전)
+    if (activeCuration && activeCuration !== 'ranking') {
+      const category = CURATION_CATEGORIES.find(cat => cat.id === activeCuration);
+      if (category) {
+        const matches = category.keywords.some(kw => 
+          c.title.includes(kw) || c.tags.includes(kw) || c.description.includes(kw) || (c.waypoints && c.waypoints.includes(kw))
+        );
+        if (!matches) return false;
+      }
+    }
+
+    if (activeTheme === 'favorites') {
+      if (!favorites.includes(c.id)) return false;
+    } else if (activeTheme !== 'all' && c.theme !== activeTheme) {
+      return false;
+    }
+
+    if (activeRegion !== 'all') {
+      const keywords = REGION_KEYWORDS[activeRegion] || [];
+      const matchesRegion = keywords.some(kw => 
+        c.title.includes(kw) || c.tags.includes(kw) || (c.waypoints && c.waypoints.includes(kw)) || c.description.includes(kw)
+      );
+      if (!matchesRegion) return false;
+    }
+
+    if (searchQuery.trim() !== '') {
+      let q = searchQuery.toLowerCase().trim();
+      
+      // 지역명 검색어 유연화 (예: '제주도' -> '제주', '강원도' -> '강원')
+      const aliases: Record<string, string> = {
+        '제주도': '제주', '강원도': '강원', '경기도': '경기', '충청도': '충청',
+        '전라도': '전라', '경상도': '경상', '서울특별시': '서울', '서울시': '서울',
+        '부산광역시': '부산', '부산시': '부산', '대구광역시': '대구', '대구시': '대구',
+        '인천광역시': '인천', '인천시': '인천', '광주광역시': '광주', '광주시': '광주',
+        '대전광역시': '대전', '대전시': '대전', '울산광역시': '울산', '울산시': '울산'
+      };
+      
+      if (aliases[q]) q = aliases[q];
+
+      if (
+        !c.title.toLowerCase().includes(q) && 
+        !c.description.toLowerCase().includes(q) && 
+        !c.tags.toLowerCase().includes(q) &&
+        !(c.waypoints && c.waypoints.toLowerCase().includes(q))
+      ) {
+        return false;
+      }
+    }
+    return true;
+  });
+
+  // 거리순 및 랭킹 정렬 로직 적용
+  if (activeCuration === 'ranking') {
+    filteredCourses.sort((a, b) => EDITOR_PICKS.indexOf(a.id) - EDITOR_PICKS.indexOf(b.id));
+  } else if (isSortedByDistance && userLocation) {
+    filteredCourses = filteredCourses.map(course => {
+      const wp = parseWaypoints(course.waypoints);
+      const dist = wp.length > 0 ? calculateDistance(userLocation.lat, userLocation.lng, wp[0].lat, wp[0].lng) : 999999;
+      return { ...course, _distanceToUser: dist };
+    }).sort((a, b) => (a._distanceToUser || 0) - (b._distanceToUser || 0));
+  }
+
+  // 동적 이미지 순환 배정 (리스트 순서대로 1, 2, 3 이미지가 예쁘게 교차되도록 보장)
+  filteredCourses = filteredCourses.map((course, index) => {
+    let cat = 'mountain';
+    const text = (course.title + ' ' + course.theme + ' ' + course.tags + ' ' + course.description).toLowerCase();
+    
+    if (text.includes('궁') || text.includes('돌담') || text.includes('한옥') || text.includes('사찰') || text.includes('향교')) cat = 'palace';
+    else if (text.includes('핑크뮬리') || text.includes('억새') || text.includes('갈대')) cat = 'pinkmuhly';
+    else if (text.includes('케이블카') || text.includes('모노레일') || text.includes('스카이워크') || text.includes('곤돌라') || text.includes('로프웨이') || text.includes('짚와이어')) cat = 'cablecar';
+    else if (text.includes('공원') || text.includes('수목원') || text.includes('유원지') || text.includes('산책') || text.includes('캠핑') || text.includes('피크닉')) cat = 'park';
+    else if (text.includes('길') || text.includes('드라이브') || text.includes('임도') || text.includes('거리')) cat = 'road';
+    else if (text.includes('산') || text.includes('봉') || text.includes('계곡') || text.includes('폭포') || text.includes('국립공원') || text.includes('자연휴양림')) cat = 'mountain';
+    else cat = 'park'; // default fallback
+
+    const maxIndex = (cat === 'mountain' || cat === 'palace') ? 1 : 3;
+    const imgIndex = (index % maxIndex) + 1;
+    const suffix = imgIndex === 1 ? '' : `_${imgIndex}`;
+    return { ...course, imageUrl: `/images/categories/${cat}${suffix}.png` };
+  });
+
+  const themes = [
+    { id: "favorites", icon: "❤️", label: "내 찜목록" },
+    { id: "단풍명소", icon: "🍁", label: "단풍명소" },
+    { id: "인생샷", icon: "📸", label: "인생샷" },
+    { id: "도심산책", icon: "🚶‍♂️", label: "도심산책" },
+    { id: "케이블카", icon: "🚠", label: "케이블카" },
+  ];
+
+  useEffect(() => {
+    setIsMounted(true);
+  }, []);
+
+  useEffect(() => {
+    const checkMobile = () => setIsMobile(window.innerWidth < 768);
+    checkMobile();
+    window.addEventListener('resize', checkMobile);
+    return () => window.removeEventListener('resize', checkMobile);
+  }, []);
+
   useEffect(() => {
     try {
       const saved = localStorage.getItem('driveMapFavorites');
       if (saved) setFavorites(JSON.parse(saved));
     } catch (e) {}
   }, []);
+
+  // 모바일에서 지도 탭 활성화 시 카카오맵 relayout 호출 및 중심 재조정
+  useEffect(() => {
+    const prevSelected = prevSelectedMobileRef.current;
+    prevSelectedMobileRef.current = selectedCourse;
+
+    if (isMobile && activeTab === 'map' && mapRef.current && window.kakao && window.kakao.maps) {
+      setTimeout(() => {
+        if (mapRef.current && window.kakao && window.kakao.maps) {
+          mapRef.current.relayout();
+          if (selectedCourse) {
+            const wps = parseWaypoints(selectedCourse.waypoints);
+            if (wps.length > 0) {
+              const bounds = new window.kakao.maps.LatLngBounds();
+              wps.forEach(wp => bounds.extend(new window.kakao.maps.LatLng(wp.lat, wp.lng)));
+              // 모바일 상세 카드(높이 약 40%) 및 헤더 영역을 피해 코스를 화면에 꽉 차고 세밀하게(확대해서) 보여주도록 스마트 패딩 지정
+              mapRef.current.setBounds(bounds, 80, 20, 260, 20);
+            }
+          } else {
+            // 코스 상세 팝업이 열려있다가 닫히는(selectedCourse가 null이 되는) 시점에는 지도 위치를 리셋하지 않고 현재 중심을 유지
+            if (prevSelected !== null) {
+              return;
+            }
+
+            // selectedCourse가 없을 경우, 현재 선택된 지역 필터나 전체 코스에 맞게 지도 중심 설정 (서울 고정 이동 버그 해결)
+            if (activeRegion !== 'all' && !searchQuery) {
+              const view = REGION_MAP_VIEWS[activeRegion];
+              if (view) {
+                mapRef.current.setCenter(new window.kakao.maps.LatLng(view.lat, view.lng));
+                mapRef.current.setLevel(view.level);
+              }
+            } else if (filteredCourses.length > 0) {
+              const bounds = new window.kakao.maps.LatLngBounds();
+              let hasValidCoords = false;
+              filteredCourses.forEach(course => {
+                const wps = parseWaypoints(course.waypoints);
+                if (wps.length > 0) {
+                  bounds.extend(new window.kakao.maps.LatLng(wps[0].lat, wps[0].lng));
+                  hasValidCoords = true;
+                }
+              });
+              if (hasValidCoords) {
+                // 모바일에서 다수의 코스를 오차를 최소화하여 최대한 가깝게 확대 렌더링하도록 좁은 여백 지정
+                mapRef.current.setBounds(bounds, 40, 20, 40, 20);
+              } else {
+                mapRef.current.setCenter(new window.kakao.maps.LatLng(37.5665, 126.9780));
+                mapRef.current.setLevel(10);
+              }
+            } else {
+              mapRef.current.setCenter(new window.kakao.maps.LatLng(37.5665, 126.9780));
+              mapRef.current.setLevel(10);
+            }
+          }
+        }
+      }, 100);
+    }
+  }, [activeTab, isMobile, selectedCourse, activeRegion, searchQuery, filteredCourses.length]);
+
+  // 지도 탭 진입 시 지도가 아직 로드되지 않은 상태라면 초기화 시도
+  useEffect(() => {
+    if (activeTab === 'map' && !mapLoaded) {
+      if (window.kakao && window.kakao.maps) {
+        initMap();
+      }
+    }
+  }, [activeTab, mapLoaded]);
 
   const toggleFavorite = (courseId: number, e?: React.MouseEvent) => {
     if (e) {
@@ -169,18 +349,6 @@ export default function Home() {
       localStorage.setItem('driveMapFavorites', JSON.stringify(newFavs));
       return newFavs;
     });
-  };
-
-  const calculateDistance = (lat1: number, lon1: number, lat2: number, lon2: number) => {
-    const R = 6371; // 지구의 반지름 (km)
-    const dLat = (lat2 - lat1) * (Math.PI / 180);
-    const dLon = (lon2 - lon1) * (Math.PI / 180);
-    const a = 
-      Math.sin(dLat/2) * Math.sin(dLat/2) +
-      Math.cos(lat1 * (Math.PI / 180)) * Math.cos(lat2 * (Math.PI / 180)) * 
-      Math.sin(dLon/2) * Math.sin(dLon/2);
-    const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1-a));
-    return R * c; // 단위: km
   };
 
   // 거리 포맷 헬퍼 함수
@@ -206,6 +374,8 @@ export default function Home() {
       setIsSortedByDistance(false);
       return;
     }
+
+    setIsHeaderVisible(false); // 모바일에서 메뉴 접기
 
     if (navigator.geolocation) {
       setIsLocating(true);
@@ -337,9 +507,12 @@ export default function Home() {
     }
   };
 
-  // 뒤로가기 및 닫기 공통 함수
-  const closeCourse = () => {
+  // 뒤로가기 및 닫기 공통 함수 (returnToList가 true일 경우에만 목록 탭으로 이동)
+  const closeCourse = (returnToList = false) => {
     setSelectedCourse(null);
+    if (returnToList && window.innerWidth < 768) {
+      setActiveTab('list');
+    }
     if (window.location.hash === '#course') {
       window.history.back(); // 해시 제거
     }
@@ -363,64 +536,6 @@ export default function Home() {
     }
   }, [selectedCourse]);
 
-  // Derived state for filtering
-  let filteredCourses = courses.filter(c => {
-    // 1. 에디터 추천 명예의 전당
-    if (activeCuration === 'ranking') {
-      return EDITOR_PICKS.includes(c.id);
-    }
-    
-    // 2. 상황별 맞춤 큐레이션 (기획전)
-    if (activeCuration && activeCuration !== 'ranking') {
-      const category = CURATION_CATEGORIES.find(cat => cat.id === activeCuration);
-      if (category) {
-        const matches = category.keywords.some(kw => 
-          c.title.includes(kw) || c.tags.includes(kw) || c.description.includes(kw) || (c.waypoints && c.waypoints.includes(kw))
-        );
-        if (!matches) return false;
-      }
-    }
-
-    if (activeTheme === 'favorites') {
-      if (!favorites.includes(c.id)) return false;
-    } else if (activeTheme !== 'all' && c.theme !== activeTheme) {
-      return false;
-    }
-
-    if (activeRegion !== 'all') {
-      const keywords = REGION_KEYWORDS[activeRegion] || [];
-      const matchesRegion = keywords.some(kw => 
-        c.title.includes(kw) || c.tags.includes(kw) || (c.waypoints && c.waypoints.includes(kw)) || c.description.includes(kw)
-      );
-      if (!matchesRegion) return false;
-    }
-
-    if (searchQuery.trim() !== '') {
-      let q = searchQuery.toLowerCase().trim();
-      
-      // 지역명 검색어 유연화 (예: '제주도' -> '제주', '강원도' -> '강원')
-      const aliases: Record<string, string> = {
-        '제주도': '제주', '강원도': '강원', '경기도': '경기', '충청도': '충청',
-        '전라도': '전라', '경상도': '경상', '서울특별시': '서울', '서울시': '서울',
-        '부산광역시': '부산', '부산시': '부산', '대구광역시': '대구', '대구시': '대구',
-        '인천광역시': '인천', '인천시': '인천', '광주광역시': '광주', '광주시': '광주',
-        '대전광역시': '대전', '대전시': '대전', '울산광역시': '울산', '울산시': '울산'
-      };
-      
-      if (aliases[q]) q = aliases[q];
-
-      if (
-        !c.title.toLowerCase().includes(q) && 
-        !c.description.toLowerCase().includes(q) && 
-        !c.tags.toLowerCase().includes(q) &&
-        !(c.waypoints && c.waypoints.toLowerCase().includes(q))
-      ) {
-        return false;
-      }
-    }
-    return true;
-  });
-
   useEffect(() => {
     // 실제 백엔드 API(/api/places)에서 단풍 명소 데이터를 가져옵니다.
     const fetchPlaces = async () => {
@@ -438,25 +553,6 @@ export default function Home() {
     };
     fetchPlaces();
   }, []);
-
-  // 거리순 및 랭킹 정렬 로직 적용
-  if (activeCuration === 'ranking') {
-    filteredCourses.sort((a, b) => EDITOR_PICKS.indexOf(a.id) - EDITOR_PICKS.indexOf(b.id));
-  } else if (isSortedByDistance && userLocation) {
-    filteredCourses = filteredCourses.map(course => {
-      const wp = parseWaypoints(course.waypoints);
-      const dist = wp.length > 0 ? calculateDistance(userLocation.lat, userLocation.lng, wp[0].lat, wp[0].lng) : 999999;
-      return { ...course, _distanceToUser: dist };
-    }).sort((a, b) => (a._distanceToUser || 0) - (b._distanceToUser || 0));
-  }
-
-  const themes = [
-    { id: "favorites", icon: "❤️", label: "내 찜목록" },
-    { id: "단풍명소", icon: "🍁", label: "단풍명소" },
-    { id: "인생샷", icon: "📸", label: "인생샷" },
-    { id: "도심산책", icon: "🚶‍♂️", label: "도심산책" },
-    { id: "케이블카", icon: "🚠", label: "케이블카" },
-  ];
 
 
 
@@ -486,7 +582,20 @@ export default function Home() {
         else if (level <= 8) scale = 1.2;
         else if (level <= 10) scale = 1.0;
         else scale = 0.8;
+        
         document.documentElement.style.setProperty('--marker-scale', scale.toString());
+        
+        // CSS 변수로 줌 아웃 상태를 직접 제어 (새로고침 없이 즉각 반응)
+        // 모바일/PC 공통: 레벨 9 이상(축소)이면 이모티콘, 미만(확대)이면 장소명
+        if (level >= 9) {
+          document.documentElement.style.setProperty('--marker-label-display', 'none');
+          document.documentElement.style.setProperty('--marker-dot-display', 'none');
+          document.documentElement.style.setProperty('--marker-icon-display', 'flex');
+        } else {
+          document.documentElement.style.setProperty('--marker-label-display', 'block');
+          document.documentElement.style.setProperty('--marker-dot-display', 'block');
+          document.documentElement.style.setProperty('--marker-icon-display', 'none');
+        }
       };
       updateMarkerScale();
       window.kakao.maps.event.addListener(map, 'zoom_changed', updateMarkerScale);
@@ -523,7 +632,8 @@ export default function Home() {
     };
   }, [mapLoaded]);
 
-  // 코스 그리기 (도로망 연동 반영)
+
+
   useEffect(() => {
     if (!mapLoaded || !mapRef.current || courses.length === 0) return;
 
@@ -532,6 +642,18 @@ export default function Home() {
     markersRef.current.forEach(m => m.setMap(null));
     polylinesRef.current = [];
     markersRef.current = [];
+
+    const getMarkerIcon = (course: Course) => {
+      const text = (course.title + ' ' + course.tags + ' ' + course.theme).toLowerCase();
+      if (text.includes('케이블카') || text.includes('모노레일') || text.includes('로프웨이') || text.includes('스카이워크')) return '🚠';
+      if (text.includes('산') || text.includes('봉') || text.includes('국립공원') || text.includes('계곡')) return '⛰️';
+      if (text.includes('캠핑') || text.includes('피크닉')) return '⛺';
+      if (text.includes('핑크뮬리') || text.includes('사진') || text.includes('인생샷')) return '📸';
+      if (text.includes('공원') || text.includes('수목원') || text.includes('숲')) return '🌳';
+      if (text.includes('궁') || text.includes('돌담길') || text.includes('향교') || text.includes('서원')) return '🏯';
+      if (text.includes('바다') || text.includes('해상') || text.includes('해변') || text.includes('호수')) return '🌊';
+      return '🍁';
+    };
 
     const fetchRoutesSequentially = async () => {
       // 0. 프리페칭된 정적 캐시(precalculated_paths.json) 로드
@@ -581,17 +703,60 @@ export default function Home() {
         const isSelected = selectedCourse?.id === course.id;
 
         // 1. 마커 그리기
+        const icon = getMarkerIcon(course);
         waypoints.forEach((wp, idx) => {
           const isStart = idx === 0;
           const contentNode = document.createElement('div');
           contentNode.innerHTML = `
-            <div class="relative flex flex-col items-center cursor-pointer transition-transform hover:scale-110 z-10 ${isSelected ? 'scale-125 z-20' : ''}" style="transform: scale(var(--marker-scale, 1)); transform-origin: bottom center;">
-              <div class="bg-slate-900 border-2 ${isStart ? 'border-orange-400' : 'border-rose-400'} text-white text-xs md:text-sm font-bold px-3 py-1 rounded-full shadow-lg mb-1 whitespace-nowrap">
-                ${wp.name}
+            <div class="marker-group relative flex flex-col items-center cursor-pointer transition-transform z-10 ${isSelected ? 'scale-125 z-20' : 'hover:scale-110'}" style="transform: scale(var(--marker-scale, 1)); transform-origin: bottom center;">
+              
+              <!-- 텍스트 레이블 (줌 아웃 시 숨김) -->
+              <div class="marker-label bg-slate-900/95 backdrop-blur-sm border-2 ${isStart ? 'border-orange-400' : 'border-rose-400'} text-white text-xs md:text-sm font-bold px-3 py-1.5 rounded-full shadow-lg mb-1 whitespace-nowrap transition-all" style="display: var(--marker-label-display, block);">
+                <span class="mr-1">${icon}</span>${wp.name}
               </div>
-              <div class="w-5 h-5 rounded-full ${isStart ? 'bg-orange-500' : 'bg-rose-500'} border-[3px] border-white shadow-md"></div>
+              
+              <!-- 줌 인 상태용 단순 점 마커 -->
+              <div class="marker-dot w-4 h-4 rounded-full ${isStart ? 'bg-orange-500' : 'bg-rose-500'} border-[2.5px] border-white shadow-md" style="display: var(--marker-dot-display, block);"></div>
+              
+              <!-- 줌 아웃 시 보이는 전용 아이콘 -->
+              <div class="marker-icon-only items-center justify-center w-8 h-8 rounded-full bg-slate-800 border-2 ${isStart ? 'border-orange-400' : 'border-rose-400'} shadow-xl text-lg hover:bg-slate-700 transition-colors absolute bottom-0" style="display: var(--marker-icon-display, none);">
+                ${icon}
+              </div>
             </div>
           `;
+          
+          // Hover 이벤트로 텍스트 레이블 강제 표시 (CSS로 하던 것을 JS로 확실히 처리)
+          contentNode.addEventListener('mouseenter', () => {
+            const label = contentNode.querySelector('.marker-label') as HTMLElement;
+            const iconOnly = contentNode.querySelector('.marker-icon-only') as HTMLElement;
+            if (label) {
+              label.style.display = 'block';
+              label.style.position = 'absolute';
+              label.style.bottom = '100%';
+              label.style.marginBottom = '4px';
+              label.style.zIndex = '50';
+            }
+            if (iconOnly) {
+              iconOnly.style.transform = 'scale(1.2)';
+              iconOnly.style.zIndex = '50';
+            }
+          });
+          
+          contentNode.addEventListener('mouseleave', () => {
+            const label = contentNode.querySelector('.marker-label') as HTMLElement;
+            const iconOnly = contentNode.querySelector('.marker-icon-only') as HTMLElement;
+            if (label) {
+              label.style.display = 'var(--marker-label-display, block)';
+              label.style.position = 'relative';
+              label.style.bottom = 'auto';
+              label.style.marginBottom = '4px';
+              label.style.zIndex = 'auto';
+            }
+            if (iconOnly) {
+              iconOnly.style.transform = 'none';
+              iconOnly.style.zIndex = 'auto';
+            }
+          });
           contentNode.onclick = () => handleCourseClick(course, waypoints);
 
           const customOverlay = new window.kakao.maps.CustomOverlay({
@@ -676,11 +841,71 @@ export default function Home() {
 
     fetchRoutesSequentially();
 
-  }, [courses, mapLoaded, activeTheme, activeRegion, selectedCourse, searchQuery, isSortedByDistance, favorites, userLocation]);
+  }, [courses, mapLoaded, activeTheme, activeRegion, selectedCourse, searchQuery, isSortedByDistance, favorites, userLocation, activeCuration]);
+
+  // 단풍 전선 CG: 현재 날짜 기준으로 firstFoliage가 지난 장소에 단풍색 원 자동 각인
+  useEffect(() => {
+    if (!mapLoaded || !mapRef.current || courses.length === 0) return;
+
+    // 기존 단풍 원 지우기
+    foliageCirclesRef.current.forEach(c => c.setMap(null));
+    foliageCirclesRef.current = [];
+
+    const now = foliageTestDate ? new Date(foliageTestDate) : new Date();
+    const year = now.getFullYear();
+
+    // 날짜 문자열 파싱 헬퍼 (MM.DD 형식)
+    const parseFoliageDate = (dateStr: string, y: number): Date | null => {
+      if (!dateStr || dateStr === '미정') return null;
+      const parts = dateStr.split('.');
+      if (parts.length !== 2) return null;
+      const month = parseInt(parts[0], 10);
+      const day = parseInt(parts[1], 10);
+      if (isNaN(month) || isNaN(day)) return null;
+      return new Date(y, month - 1, day);
+    };
+
+    courses.forEach(course => {
+      const wps = parseWaypoints(course.waypoints);
+      if (wps.length === 0) return;
+
+      const firstDate = parseFoliageDate(course.firstFoliage || '', year);
+      const peakDate = parseFoliageDate(course.peakFoliage || '', year);
+      if (!firstDate) return;
+
+      if (now < firstDate) return; // 아직 단풍 시작 안함
+
+      // 단풍 진행단계 판단
+      const isPeak = peakDate && now >= peakDate;
+      const daysSinceStart = Math.floor((now.getTime() - firstDate.getTime()) / (1000 * 60 * 60 * 24));
+      const intensity = Math.min(daysSinceStart / 14, 1); // 14일에 걸쳐 증강
+
+      // 단풍 적색/주황색 채우기 원 (Kakao Circle)
+      const circle = new window.kakao.maps.Circle({
+        center: new window.kakao.maps.LatLng(wps[0].lat, wps[0].lng),
+        radius: isPeak ? 22000 : 15000 + intensity * 5000,
+        strokeWeight: 0,
+        strokeColor: 'transparent',
+        strokeOpacity: 0,
+        fillColor: isPeak ? '#dc2626' : '#f97316',
+        fillOpacity: isPeak ? 0.45 : 0.2 + intensity * 0.2,
+      });
+      circle.setMap(mapRef.current);
+      foliageCirclesRef.current.push(circle);
+    });
+  }, [mapLoaded, courses, foliageTestDate]);
 
   // 코스 목록이 변경될 때(초기 로드, 검색, 테마 필터 등) 검색된 코스들이 모두 화면에 들어오도록 지도 이동 (자동 줌/패닝)
   useEffect(() => {
+    const prevSelected = prevSelectedCommonRef.current;
+    prevSelectedCommonRef.current = selectedCourse;
+
     if (mapLoaded && mapRef.current && filteredCourses.length > 0 && !selectedCourse && !isSortedByDistance) {
+      // 코스 상세 팝업이 열려있다가 닫히는(selectedCourse가 null이 되는) 시점에는 지도 위치를 리셋하지 않고 현재 중심을 유지
+      if (prevSelected !== null) {
+        return;
+      }
+
       if (activeRegion !== 'all' && !searchQuery) {
         // 지역 필터일 경우 지정된 고정 뷰로 이동
         const view = REGION_MAP_VIEWS[activeRegion];
@@ -712,7 +937,7 @@ export default function Home() {
         }
       }
     }
-  }, [searchQuery, activeTheme, activeRegion, mapLoaded, selectedCourse, isSortedByDistance, courses.length]); // courses.length를 추가하여 초기 로딩 완료 시점에 자동 패닝되도록 수정
+  }, [searchQuery, activeTheme, activeRegion, mapLoaded, selectedCourse, isSortedByDistance, courses.length, activeCuration]); // courses.length를 추가하여 초기 로딩 완료 시점에 자동 패닝되도록 수정
 
   // 거리순 정렬 시 내 위치로 자동 패닝
   useEffect(() => {
@@ -773,8 +998,17 @@ export default function Home() {
     });
   };
 
+  const scrollToCourseList = () => {
+    const el = document.getElementById('course-list-section');
+    if (el) el.scrollIntoView({ behavior: 'smooth' });
+  };
+
   const handleCourseClick = (course: Course, waypoints: ParsedWaypoint[]) => {
     setSelectedCourse(course);
+    setIsSheetMinimized(false); // 코스 선택 시 처음에 바텀시트를 활성화
+    if (window.innerWidth < 768) {
+      setActiveTab('map');
+    }
     
     if (mapRef.current && waypoints.length > 0) {
       const bounds = new window.kakao.maps.LatLngBounds();
@@ -840,7 +1074,7 @@ export default function Home() {
       <div className="space-y-4">
         {/* 뒤로가기 버튼 */}
         <button 
-          onClick={() => setSelectedCourse(null)}
+          onClick={() => closeCourse(false)}
           className="flex items-center gap-2 text-slate-400 hover:text-white transition-colors mb-2 font-bold w-fit bg-slate-800/50 px-3 py-1.5 rounded-lg border border-slate-700/50"
         >
           <span>←</span> <span>목록으로 돌아가기</span>
@@ -848,10 +1082,17 @@ export default function Home() {
 
         {/* 코스 풍경 사진 (이미지 URL이 있을 경우에만 렌더링) */}
         {selectedCourse.imageUrl && (
-          <div 
-            className="w-full h-32 md:h-48 bg-slate-800 rounded-2xl bg-cover bg-center shadow-inner mb-4 border border-slate-700"
-            style={{ backgroundImage: `url("${selectedCourse.imageUrl}")` }}
-          ></div>
+          <div className="w-full h-32 md:h-48 rounded-2xl overflow-hidden mb-4 border border-slate-700 bg-slate-800 relative shadow-inner">
+            <img 
+              src={selectedCourse.imageUrl} 
+              alt={selectedCourse.title}
+              className="w-full h-full object-cover transition-opacity duration-300"
+              onError={(e) => {
+                // 외부 이미지(Unsplash 등)가 404 에러 시 로컬 디폴트 이미지로 대체
+                e.currentTarget.src = "/images/hero.png";
+              }}
+            />
+          </div>
         )}
         
         <div className="flex gap-2 flex-wrap">
@@ -894,18 +1135,63 @@ export default function Home() {
           </div>
         </div>
 
-        <div className="grid grid-cols-2 gap-3 pt-4">
+        {/* 🌤️ 실시간 날씨 및 미세먼지 연동 */}
+        {(() => {
+          const wps = parseWaypoints(selectedCourse.waypoints);
+          if (wps.length > 0) {
+            return <WeatherInfo lat={wps[0].lat} lng={wps[0].lng} />;
+          }
+          return null;
+        })()}
+
+        {/* 🏔️ 단풍 명소 상세 안내 및 편의 정보 (주차장, 난이도, 접근성) */}
+        <div className="bg-slate-800/20 backdrop-blur-md border border-slate-700/40 rounded-2xl p-4 shadow-lg space-y-3">
+          <div className="flex justify-between items-center border-b border-slate-700/30 pb-2">
+            <span className="text-xs font-black text-slate-400 flex items-center gap-1">
+              ℹ️ 코스 및 편의 정보
+            </span>
+          </div>
+          <div className="space-y-2.5">
+            <div className="flex items-start gap-2.5 text-xs text-slate-200">
+              <span className="bg-orange-500/20 text-orange-400 border border-orange-500/30 px-2 py-0.5 rounded font-black shrink-0">
+                난이도
+              </span>
+              <span className="font-semibold">{selectedCourse.difficulty || '쉬움'}</span>
+            </div>
+            <div className="flex items-start gap-2.5 text-xs text-slate-200">
+              <span className="bg-sky-500/20 text-sky-400 border border-sky-500/30 px-2 py-0.5 rounded font-black shrink-0">
+                주차장
+              </span>
+              <span className="font-semibold">{selectedCourse.parking || '인근 주차장 이용 가능'}</span>
+            </div>
+            <div className="flex items-start gap-2.5 text-xs text-slate-200">
+              <span className="bg-emerald-500/20 text-emerald-400 border border-emerald-500/30 px-2 py-0.5 rounded font-black shrink-0">
+                접근성
+              </span>
+              <span className="font-semibold">{selectedCourse.accessibility || '유모차 및 휠체어 진입 가능'}</span>
+            </div>
+          </div>
+        </div>
+
+        {/* 💸 애드센스 광고 영역 - 첫단풍/절정기 및 편의 정보 하단으로 이동 */}
+        <div className="w-full h-[250px] bg-slate-800/30 backdrop-blur-md border border-slate-700/40 rounded-2xl overflow-hidden shadow-lg mt-2 shrink-0">
+          <AdBanner 
+            dataAdSlot="1273604121" 
+            dataAdFormat="auto" 
+            dataFullWidthResponsive={true} 
+          />
+        </div>
+
+        {/* 근처 단풍 축제 패널 - visitkorea 실데이터 */}
+        <FestivalPanel course={selectedCourse} courseName={selectedCourse.title} />
+
+        {/* 내비게이션 버튼 - 모바일에서만 노출 */}
+        <div className="grid grid-cols-2 gap-3 pt-4 md:hidden">
           <button 
             onClick={() => {
-              const isMobile = /iPhone|iPad|iPod|Android/i.test(navigator.userAgent);
-              if (!isMobile) {
-                alert("🚗 스마트폰에서 접속하셔야 내비게이션 앱이 실행됩니다!\n(PC에서는 내비 어플이 없어서 작동하지 않습니다)");
-                return;
-              }
               const wps = parseWaypoints(selectedCourse.waypoints);
               if (wps.length > 0) {
                 const dest = wps[wps.length - 1];
-                // window.location.href 대신 window.open을 사용하여 기존 탭(우리 사이트)을 살려둡니다.
                 window.open(`tmap://search?name=${encodeURIComponent(dest.name)}`, '_blank');
               }
             }}
@@ -915,11 +1201,6 @@ export default function Home() {
           </button>
           <button 
             onClick={() => {
-              const isMobile = /iPhone|iPad|iPod|Android/i.test(navigator.userAgent);
-              if (!isMobile) {
-                alert("🚗 스마트폰에서 접속하셔야 카카오내비 앱이 실행됩니다!\n(PC에서는 내비 어플이 없어서 작동하지 않습니다)");
-                return;
-              }
               const wps = parseWaypoints(selectedCourse.waypoints);
               if (wps.length > 0) {
                 const dest = wps[wps.length - 1];
@@ -944,37 +1225,33 @@ export default function Home() {
           </button>
         </div>
         
-        {/* 쿠팡 파트너스 배너 (수익화) */}
-        <div className="mt-6 mb-2">
+        {/* 쿠팡 파트너스 배너 (수익화 - 등산/피크닉 용품) */}
+        <div className="mt-6 mb-2 hidden md:block">
           <a 
-            href="https://link.coupang.com/a/d9GFO0yULs" 
+            href="https://link.coupang.com/a/eaOsmrTrTU" 
             target="_blank" 
             rel="noopener noreferrer"
-            className="block w-full bg-gradient-to-r from-pink-500 to-rose-500 rounded-xl p-4 shadow-lg hover:-translate-y-1 transition-transform relative overflow-hidden group"
+            className="block w-full rounded-xl overflow-hidden shadow-lg hover:-translate-y-1 transition-transform relative group border border-slate-700"
           >
-            <div className="absolute -right-4 -top-4 w-20 h-20 bg-white/20 rounded-full blur-xl group-hover:bg-white/30 transition-colors"></div>
-            <div className="flex items-center justify-between relative z-10">
+            {/* 고품질 등산용품 배경 이미지 */}
+            <div className="absolute inset-0 bg-[url('https://images.unsplash.com/photo-1551632811-561732d1e306?auto=format&fit=crop&q=80&w=800')] bg-cover bg-center"></div>
+            
+            {/* 오버레이 그라데이션 (텍스트가 잘 보이도록 어둡게 처리) */}
+            <div className="absolute inset-0 bg-gradient-to-r from-slate-900/95 via-slate-900/80 to-transparent"></div>
+            
+            <div className="flex items-center justify-between relative z-10 p-5">
               <div>
-                <p className="text-white font-black text-sm mb-1">가을 여행 갈 때 이거 챙겼어? 👀</p>
-                <p className="text-pink-100 text-xs font-semibold">차량 필수템 / 간식 로켓배송</p>
+                <span className="bg-rose-500 text-white text-[10px] font-black px-2 py-0.5 rounded-sm tracking-wider mb-2 inline-block shadow-md">HOT 특가</span>
+                <p className="text-white font-black text-base mb-1 drop-shadow-md">가을 산행 필수템 총집합! 🥾</p>
+                <p className="text-slate-300 text-xs font-medium">등산화 / 피크닉 돗자리 / 보온병 로켓배송</p>
               </div>
-              <div className="bg-white text-rose-500 w-8 h-8 rounded-full flex items-center justify-center font-black shadow-md group-hover:scale-110 transition-transform">
+              <div className="bg-white/20 backdrop-blur-sm text-white w-8 h-8 rounded-full flex items-center justify-center font-black shadow-md group-hover:bg-rose-500 transition-colors border border-white/30">
                 ➔
               </div>
             </div>
-            <p className="text-[8px] text-white/50 mt-2 text-right">이 포스팅은 쿠팡 파트너스 활동의 일환으로, 이에 따른 일정액의 수수료를 제공받습니다.</p>
+            <p className="text-[8px] text-white/50 absolute bottom-1 right-2 z-10 bg-black/40 px-1 rounded">이 포스팅은 쿠팡 파트너스 활동의 일환으로, 이에 따른 일정액의 수수료를 제공받습니다.</p>
           </a>
         </div>
-
-        {/* 가상 주행 모드 버튼 */}
-        <button 
-          onClick={startDriveMode}
-          className="w-full mt-2 bg-gradient-to-r from-sky-500 to-indigo-500 hover:from-sky-600 hover:to-indigo-600 text-white font-bold py-4 rounded-xl transition-all shadow-[0_0_20px_rgba(56,189,248,0.4)] flex items-center justify-center gap-2 relative overflow-hidden group"
-        >
-          <div className="absolute inset-0 bg-white/20 translate-y-full group-hover:translate-y-0 transition-transform duration-300"></div>
-          <span className="text-xl relative z-10">▶️</span>
-          <span className="relative z-10 tracking-tight">10초 만에 코스 미리보기 (가상 주행)</span>
-        </button>
 
         {/* 카카오톡 공유 버튼 */}
         <button 
@@ -1019,36 +1296,51 @@ export default function Home() {
     );
   };
 
+  if (!isMounted) {
+    return (
+      <div className="fixed inset-0 w-full h-full flex flex-col items-center justify-center bg-slate-950 text-slate-500 font-bold z-[99999]">
+        <span className="text-4xl animate-spin mb-4">🌀</span>
+        <p>단풍 맵 로딩 중...</p>
+      </div>
+    );
+  }
+
   return (
     <div className="fixed inset-0 w-full flex flex-col md:flex-row bg-slate-950 overflow-hidden" style={{ position: 'fixed', inset: 0, width: '100vw', height: '100vh', overflow: 'hidden' }}>
       {/* 이니셜 D 감성의 메인 스플래시 화면 */}
-      {showSplash && (
-        <div className="absolute inset-0 z-[9999] bg-slate-950 flex flex-col items-center justify-center overflow-hidden">
-          <div 
-            className="absolute inset-0 bg-cover bg-center opacity-70 scale-105 pointer-events-none"
-            style={{ backgroundImage: "url('/images/hero.png')" }}
-          ></div>
-          <div className="absolute inset-0 bg-gradient-to-t from-slate-950 via-slate-950/40 to-transparent pointer-events-none"></div>
-          
-          <div className="relative z-[999] text-center px-6 mt-32 pointer-events-auto">
-            <span className="inline-block bg-indigo-600 text-white font-black px-5 py-2 rounded-full text-sm mb-6 shadow-lg shadow-indigo-500/50">
-              전국 감성 단풍 명소
-            </span>
-            <h1 className="text-6xl font-black text-white mb-4 tracking-tighter drop-shadow-[0_5px_5px_rgba(0,0,0,0.8)] italic">
-              MAPLE MAP
-            </h1>
-            <p className="text-slate-200 font-bold mb-12 drop-shadow-md text-lg">
-              가을의 정취를 느끼며<br/>아름다운 단풍길을 걸어보세요
-            </p>
-            <button 
-              onClick={() => setShowSplash(false)}
-              className="relative z-[1000] cursor-pointer bg-white text-slate-900 font-black text-xl px-12 py-5 rounded-full shadow-2xl hover:scale-105 hover:bg-slate-100 transition-all border-4 border-slate-200"
-            >
-              단풍 명소 둘러보기 🍁
-            </button>
-          </div>
-        </div>
-      )}
+      <AnimatePresence>
+        {showSplash && (
+          <motion.div 
+            initial={{ opacity: 1 }}
+            exit={{ opacity: 0, y: -40, transition: { duration: 0.6, ease: "easeInOut" } }}
+            className="absolute inset-0 z-[9999] bg-slate-950 flex flex-col items-center justify-center overflow-hidden"
+          >
+            <div 
+              className="absolute inset-0 bg-cover bg-center opacity-70 scale-105 pointer-events-none"
+              style={{ backgroundImage: "url('/images/hero.png')" }}
+            ></div>
+            <div className="absolute inset-0 bg-gradient-to-t from-slate-950 via-slate-950/40 to-transparent pointer-events-none"></div>
+            
+            <div className="relative z-[999] text-center px-6 mt-32 pointer-events-auto">
+              <span className="inline-block bg-indigo-600 text-white font-black px-5 py-2 rounded-full text-sm mb-6 shadow-lg shadow-indigo-500/50">
+                전국 감성 단풍 명소
+              </span>
+              <h1 className="text-6xl font-black text-white mb-4 tracking-tighter drop-shadow-[0_5px_5px_rgba(0,0,0,0.8)] italic">
+                MAPLE MAP
+              </h1>
+              <p className="text-slate-200 font-bold mb-12 drop-shadow-md text-lg">
+                가을의 정취를 느끼며<br/>아름다운 단풍길을 걸어보세요
+              </p>
+              <button 
+                onClick={() => setShowSplash(false)}
+                className="relative z-[1000] cursor-pointer bg-white text-slate-900 font-black text-xl px-12 py-5 rounded-full shadow-2xl hover:scale-105 hover:bg-slate-100 transition-all border-4 border-slate-200"
+              >
+                단풍 명소 둘러보기 🍁
+              </button>
+            </div>
+          </motion.div>
+        )}
+      </AnimatePresence>
 
       <Script 
         src={`//dapi.kakao.com/v2/maps/sdk.js?appkey=${KAKAO_APP_KEY}&autoload=false`}
@@ -1070,8 +1362,294 @@ export default function Home() {
         />
       )}
 
+      {/* 1. 모바일 전용 세로형 스크롤 랜딩 레이아웃 (선택된 코스가 없고 리스트 탭일 때 노출) */}
+      {isMobile && activeTab === 'list' && (
+        <div className="w-full h-full overflow-y-auto bg-slate-950 flex flex-col scroll-smooth z-[40]">
+          {/* 모바일 상단 고정 헤더 */}
+          <header className="sticky top-0 w-full z-50 bg-slate-950/85 backdrop-blur-xl border-b border-slate-900/50 flex justify-between items-center h-16 px-4 shrink-0">
+            <span className="font-black italic text-xl tracking-tighter text-transparent bg-clip-text bg-gradient-to-r from-orange-400 via-amber-300 to-red-400 drop-shadow-[0_2px_8px_rgba(249,115,22,0.3)]">MAPLE MAP</span>
+            <button 
+              onClick={() => setIsInquiryModalOpen(true)}
+              className="bg-slate-900 border border-slate-800 hover:border-slate-700 text-slate-300 hover:text-white px-3.5 py-1.5 rounded-full text-xs font-bold transition-all"
+            >
+              제안 및 문의 💡
+            </button>
+          </header>
+
+          {/* 히어로 섹션 */}
+          <div className="relative w-full h-[50vh] min-h-[340px] flex items-center justify-center overflow-hidden shrink-0">
+            <div 
+              className="absolute inset-0 bg-cover bg-center opacity-85 scale-105 pointer-events-none"
+              style={{ backgroundImage: "url('/images/hero.png')" }}
+            ></div>
+            <div className="absolute inset-0 bg-gradient-to-b from-slate-950/10 via-transparent to-slate-950/85"></div>
+            
+            <div className="relative z-10 text-center px-6 max-w-md flex flex-col items-center">
+              <div className="inline-block bg-orange-500/15 border border-orange-500/30 rounded-full px-4 py-1 mb-4 backdrop-blur-md">
+                <span className="text-[10px] font-bold text-orange-400 tracking-widest uppercase">전국 감성 단풍 명소</span>
+              </div>
+              <h1 className="text-5xl font-black italic text-white mb-3 tracking-tighter drop-shadow-[0_4px_8px_rgba(0,0,0,0.8)]">
+                MAPLE MAP
+              </h1>
+              <p className="text-slate-300 text-sm font-semibold mb-8 max-w-[240px] drop-shadow-md leading-relaxed">
+                가을의 정취를 느끼며<br/>아름다운 단풍길을 걸어보세요
+              </p>
+              <button 
+                onClick={scrollToCourseList}
+                className="bg-gradient-to-r from-orange-500 to-red-600 hover:from-orange-600 hover:to-red-700 text-white font-extrabold text-sm px-9 py-3.5 rounded-full flex items-center gap-2 shadow-[0_4px_20px_rgba(249,115,22,0.3)] transition-all group active:scale-95"
+              >
+                단풍 명소 둘러보기 <span className="group-hover:translate-x-1 transition-transform">🍁</span>
+              </button>
+            </div>
+          </div>
+
+          {/* PWA 앱 설치 */}
+          <div className="px-4 mt-2">
+            <PWAInstallButton />
+          </div>
+
+          {/* 벤토 테마 카드 */}
+          <div className="px-4 py-4 shrink-0">
+            <h2 className="text-base font-bold text-white mb-3 flex items-center gap-1.5">
+              <span className="text-orange-500">✨</span> 상황별 맞춤 단풍 코스
+            </h2>
+            <div className="grid grid-cols-2 gap-3">
+              {/* 명예의 전당 (에디터 추천) */}
+              <button 
+                onClick={() => {
+                  setActiveCuration('ranking');
+                  setActiveTheme('all');
+                  setActiveRegion('all');
+                  setSearchQuery('');
+                  setIsSortedByDistance(false);
+                  scrollToCourseList();
+                }}
+                className={`relative overflow-hidden rounded-2xl aspect-[4/3] border p-4 text-left flex flex-col justify-end transition-all active:scale-[0.98] group ${
+                  activeCuration === 'ranking' 
+                    ? 'border-orange-500 shadow-lg shadow-orange-500/20' 
+                    : 'border-slate-800/80 hover:border-orange-500/30'
+                }`}
+              >
+                <div 
+                  className="absolute inset-0 bg-cover bg-center opacity-70 group-hover:scale-105 transition-transform duration-700 z-0"
+                  style={{ backgroundImage: "url('https://images.unsplash.com/photo-1506744038136-46273834b3fb?q=80&w=600&auto=format&fit=crop')" }}
+                ></div>
+                <div className="absolute inset-0 bg-gradient-to-t from-slate-950 via-slate-950/20 to-transparent z-[1]"></div>
+                <div className="relative z-10">
+                  <span className="text-2xl mb-1 block group-hover:animate-bounce transition-all">👑</span>
+                  <h3 className="text-xs font-bold text-white">명예의 전당</h3>
+                  <p className="text-[9px] text-slate-300 mt-0.5">에디터 추천 가을 명소</p>
+                </div>
+              </button>
+              
+              {/* 나머지 CURATION_CATEGORIES */}
+              {CURATION_CATEGORIES.map(cat => {
+                const iconMapImg: Record<string, string> = {
+                  'peak': 'https://images.unsplash.com/photo-1509114397022-ed747cca3f65?q=80&w=600&auto=format&fit=crop',
+                  'pink': 'https://images.unsplash.com/photo-1508739773434-c26b3d09e071?q=80&w=600&auto=format&fit=crop',
+                  'city': 'https://images.unsplash.com/photo-1447752875215-b2761acb3c5d?q=80&w=600&auto=format&fit=crop',
+                  'cable': 'https://images.unsplash.com/photo-1544735716-392fe2489ffa?q=80&w=600&auto=format&fit=crop'
+                };
+                return (
+                  <button 
+                    key={cat.id}
+                    onClick={() => {
+                      setActiveCuration(cat.id);
+                      setActiveTheme('all');
+                      setActiveRegion('all');
+                      setSearchQuery('');
+                      setIsSortedByDistance(false);
+                      scrollToCourseList();
+                    }}
+                    className={`relative overflow-hidden rounded-2xl aspect-[4/3] border p-4 text-left flex flex-col justify-end transition-all active:scale-[0.98] group ${
+                      activeCuration === cat.id 
+                        ? 'border-orange-500 shadow-lg shadow-orange-500/20' 
+                        : 'border-slate-800/80 hover:border-orange-500/30'
+                    }`}
+                  >
+                    <div 
+                      className="absolute inset-0 bg-cover bg-center opacity-70 group-hover:scale-105 transition-transform duration-700 z-0"
+                      style={{ backgroundImage: `url("${iconMapImg[cat.id] || 'https://images.unsplash.com/photo-1506744038136-46273834b3fb?q=80&w=600&auto=format&fit=crop'}")` }}
+                    ></div>
+                    <div className="absolute inset-0 bg-gradient-to-t from-slate-950 via-slate-950/20 to-transparent z-[1]"></div>
+                    <div className="relative z-10">
+                      <span className="text-2xl mb-1 block group-hover:animate-bounce transition-all">{cat.icon}</span>
+                      <h3 className="text-xs font-bold text-white">{cat.name}</h3>
+                      <p className="text-[9px] text-slate-300 mt-0.5">테마 맞춤 추천</p>
+                    </div>
+                  </button>
+                );
+              })}
+            </div>
+          </div>
+
+          {/* 코스 탐색 섹션 */}
+          <div id="course-list-section" className="px-4 py-4 bg-slate-950 scroll-mt-16">
+            <h2 className="text-base font-bold text-white mb-3 flex items-center gap-1.5">
+              <span>📍</span> 명소 코스 탐색
+            </h2>
+
+            {/* 검색창 */}
+            <form 
+              onSubmit={(e) => { e.preventDefault(); }}
+              className="relative mb-3 w-full"
+            >
+              <input 
+                type="text" 
+                placeholder="지역, 코스명 검색 (예: 설악산)" 
+                value={searchQuery}
+                onChange={(e) => {
+                  setSearchQuery(e.target.value);
+                  closeCourse();
+                  if (isMobile) {
+                    setActiveTab('list');
+                  }
+                }}
+                className="w-full bg-slate-900 border border-slate-800 text-white pl-10 pr-10 py-3 rounded-xl focus:outline-none focus:border-orange-500 focus:ring-1 focus:ring-orange-500 transition-all placeholder:text-slate-600 text-sm"
+              />
+              {searchQuery ? (
+                <button
+                  type="button"
+                  onClick={() => { setSearchQuery(''); closeCourse(); }}
+                  className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-500 hover:text-white bg-slate-800 rounded-full w-5 h-5 flex items-center justify-center text-[10px] font-black"
+                >
+                  ✕
+                </button>
+              ) : (
+                <span className="absolute left-3.5 top-1/2 -translate-y-1/2 text-slate-500 text-sm">🔍</span>
+              )}
+            </form>
+
+            {/* 지역 필터 칩 */}
+            <div className="flex overflow-x-auto gap-1.5 pb-2 scrollbar-hide">
+              {REGIONS.map((region) => (
+                <button 
+                  key={region.id}
+                  onClick={() => {
+                    setActiveRegion(region.id);
+                    setActiveCuration(null);
+                  }}
+                  className={`shrink-0 px-3.5 py-1.5 rounded-full text-xs font-bold transition-all border ${
+                    activeRegion === region.id 
+                      ? 'bg-orange-600 text-white border-orange-500 shadow-md shadow-orange-500/20' 
+                      : 'bg-slate-900 text-slate-400 border-slate-800 hover:bg-slate-850'
+                  }`}
+                >
+                  {region.name}
+                </button>
+              ))}
+            </div>
+
+            {/* 정렬 및 메타 정보 */}
+            <div className="flex justify-between items-center mb-4 mt-2">
+              <span className="text-xs font-bold text-slate-400">
+                총 {filteredCourses.length}개 명소 발견
+              </span>
+              <button 
+                onClick={handleSortByDistance}
+                disabled={isLocating}
+                className={`text-xs font-bold px-3.5 py-1.5 rounded-full transition-all border flex items-center gap-1 ${
+                  isSortedByDistance 
+                    ? 'bg-red-600 text-white border-red-500' 
+                    : 'bg-slate-900 text-slate-400 border-slate-800 hover:bg-slate-850'
+                }`}
+              >
+                {isLocating ? '위치 파악중...' : `📍 ${isSortedByDistance ? '정렬 해제' : '내 주변순'}`}
+              </button>
+            </div>
+
+            {/* 코스 카드 목록 */}
+            <div className="space-y-4">
+              {filteredCourses.length > 0 ? (
+                filteredCourses.map((course, index) => (
+                  <div 
+                    key={course.id}
+                    onClick={() => {
+                      const wps = parseWaypoints(course.waypoints);
+                      handleCourseClick(course, wps);
+                    }}
+                    className="bg-slate-900/60 border border-slate-900 rounded-2xl overflow-hidden hover:border-orange-500/50 transition-all flex flex-col active:scale-[0.99] cursor-pointer"
+                  >
+                    {course.imageUrl ? (
+                      <div 
+                        className="w-full h-36 bg-cover bg-center relative"
+                        style={{ backgroundImage: `url("${course.imageUrl}")` }}
+                      >
+                        <div className="absolute inset-0 bg-gradient-to-t from-slate-950 via-slate-950/20 to-transparent"></div>
+                        {activeCuration === 'ranking' && (
+                          <span className="absolute top-3 left-3 bg-amber-500 text-slate-950 font-black text-xs px-2 py-0.5 rounded shadow-md">
+                            {index + 1}위
+                          </span>
+                        )}
+                      </div>
+                    ) : (
+                      <div className="w-full h-24 bg-slate-850 flex items-center justify-center text-3xl">
+                        🍁
+                      </div>
+                    )}
+                    <div className="p-4 flex-1 flex flex-col justify-between">
+                      <div>
+                        <div className="flex justify-between items-start gap-2 mb-1">
+                          <h3 className="text-white font-bold text-base leading-tight">
+                            {course.title}
+                          </h3>
+                          <button 
+                            onClick={(e) => { e.stopPropagation(); toggleFavorite(course.id, e); }}
+                            className="text-lg p-1 -mt-1"
+                          >
+                            {favorites.includes(course.id) ? '❤️' : '🤍'}
+                          </button>
+                        </div>
+                        <p className="text-slate-400 text-xs line-clamp-2 mb-3">
+                          {course.description}
+                        </p>
+                      </div>
+                      <div className="flex items-center gap-3 pt-2.5 border-t border-slate-900">
+                        <span className="bg-slate-950 text-slate-300 text-[10px] font-bold px-2 py-0.5 rounded flex items-center gap-1">
+                          <span>🍁 첫단풍</span> {formatDate(course.firstFoliage || "미정")}
+                        </span>
+                        <span className="bg-slate-950 text-slate-300 text-[10px] font-bold px-2 py-0.5 rounded flex items-center gap-1">
+                          <span>👑 절정기</span> {formatDate(course.peakFoliage || "미정")}
+                        </span>
+                        {typeof course._distanceToUser === 'number' && (
+                          <span className="bg-rose-500/10 text-rose-400 text-[10px] font-bold px-2 py-0.5 rounded border border-rose-500/20">
+                            약 {course._distanceToUser.toFixed(1)}km
+                          </span>
+                        )}
+                      </div>
+                    </div>
+                  </div>
+                ))
+              ) : (
+                <div className="py-12 text-center text-slate-600 text-sm font-bold">
+                  조건에 맞는 코스가 없습니다 🥲
+                </div>
+              )}
+            </div>
+          </div>
+
+          {/* 하단 푸터 */}
+          <footer className="bg-slate-950 border-t border-slate-900 py-8 px-4 text-center mt-auto shrink-0">
+            <span className="font-extrabold italic text-sm text-slate-700 block mb-1">MAPLE MAP</span>
+            <p className="text-slate-600 text-[9px]">© 2026 MAPLE MAP. Autumn Breeze.</p>
+          </footer>
+        </div>
+      )}
+
+      {/* 2. 모바일 코스 상세 맵 레이아웃 (코스 선택 시 노출할 뒤로가기 버튼) */}
+      {isMobile && selectedCourse && (
+        <div className="absolute top-4 left-4 z-20">
+          <button 
+            onClick={() => closeCourse(true)}
+            className="flex items-center gap-1.5 text-white font-bold text-xs bg-slate-900/90 backdrop-blur-md px-4 py-2.5 rounded-full border border-slate-800 shadow-[0_4px_12px_rgba(0,0,0,0.5)] active:scale-95 transition-transform"
+          >
+            <span>←</span> <span>목록으로 돌아가기</span>
+          </button>
+        </div>
+      )}
+
       {/* 지도 컨트롤 (확대/축소/내위치) */}
-      <div className="absolute z-20 top-1/2 -translate-y-1/2 right-4 md:transform-none md:top-auto md:bottom-20 md:right-auto md:left-[424px] flex flex-col gap-2 shadow-[0_5px_15px_rgba(0,0,0,0.3)]">
+      <div className={`absolute z-20 top-1/2 -translate-y-1/2 right-4 md:transform-none md:top-auto md:bottom-20 md:right-auto md:left-[424px] flex flex-col gap-2 shadow-[0_5px_15px_rgba(0,0,0,0.3)] ${(!isMobile || activeTab === 'map') ? 'flex' : 'hidden'}`}>
         <button 
           onClick={findMyLocation}
           disabled={isLocatingMap}
@@ -1173,15 +1751,24 @@ export default function Home() {
         )}
       </AnimatePresence>
 
-      {/* PC 사이드바 / 모바일 상단 헤더 */}
-      <div className={`
-        md:relative md:w-[400px] md:h-full md:bg-slate-900 md:border-r md:border-slate-800 md:flex md:flex-col md:p-6 md:z-20
-        absolute top-0 left-0 w-full z-10 p-4 bg-gradient-to-b from-slate-950/80 to-transparent md:bg-none
-        ${isDriveMode ? 'hidden md:hidden' : ''}
-      `}>
-        <h1 className="text-xl md:text-3xl font-black text-white mb-3 md:mb-6 tracking-tight flex items-center gap-2">
-          <span>🍁</span> Maple Map
-        </h1>
+      {/* PC 사이드바 */}
+      {!isMobile && (
+        <div className={`
+          md:relative md:w-[400px] md:h-full md:bg-slate-900 md:border-r md:border-slate-800 md:flex md:flex-col md:p-6 md:z-20
+          hidden md:flex
+          ${isDriveMode ? 'hidden md:hidden' : ''}
+        `}>
+        <div className="flex justify-between items-center mb-3 md:mb-6 shrink-0 w-full">
+          <h1 className="text-xl md:text-3xl font-black text-white tracking-tight flex items-center gap-2">
+            <span>🍁</span> Maple Map
+          </h1>
+          <button 
+            onClick={() => setIsInquiryModalOpen(true)}
+            className="bg-slate-800/80 border border-slate-700 hover:bg-slate-700 hover:border-slate-600 text-slate-300 hover:text-white px-3.5 py-1.5 rounded-full text-xs font-bold transition-all flex items-center gap-1 active:scale-95 shrink-0"
+          >
+            <span>제안 및 문의</span><span>💡</span>
+          </button>
+        </div>
 
         <div className="relative mb-4 w-full shrink-0">
           <input 
@@ -1191,6 +1778,9 @@ export default function Home() {
             onChange={(e) => {
               setSearchQuery(e.target.value);
               closeCourse();
+              if (e.target.value.trim() !== '') {
+                setIsHeaderVisible(false); // 모바일에서 메뉴 접기
+              }
             }}
             className="w-full bg-slate-800/80 border border-slate-700 text-white pl-4 pr-10 py-3 rounded-xl focus:outline-none focus:border-indigo-500 focus:ring-1 focus:ring-indigo-500 transition-all placeholder:text-slate-500 shadow-inner"
           />
@@ -1231,14 +1821,14 @@ export default function Home() {
             </button>
           </div>
 
-          {/* 검색결과 자동완성 드롭다운 (모바일 전용) */}
+          {/* 검색결과 자동완성 드롭다운 (모바일 전용) - fixed로 항상 노출 */}
           <AnimatePresence>
             {(searchQuery || isSortedByDistance || activeTheme === 'favorites' || activeCuration !== null) && !selectedCourse && (
               <motion.div 
                 initial={{ opacity: 0, y: -10 }}
                 animate={{ opacity: 1, y: 0 }}
                 exit={{ opacity: 0, y: -10 }}
-                className="absolute top-full left-0 right-0 mt-2 bg-slate-800/95 backdrop-blur-xl border border-slate-700 rounded-2xl shadow-[0_10px_40px_rgba(0,0,0,0.8)] z-50 max-h-72 overflow-y-auto custom-scrollbar md:hidden"
+                className="fixed left-0 right-0 top-[120px] mx-3 bg-slate-800/98 backdrop-blur-xl border border-slate-700 rounded-2xl shadow-[0_10px_40px_rgba(0,0,0,0.9)] z-[200] max-h-[55vh] overflow-y-auto custom-scrollbar md:hidden"
               >
                 {filteredCourses.length > 0 ? (
                   <div className="p-2 space-y-1">
@@ -1316,8 +1906,6 @@ export default function Home() {
         {/* === SCROLLABLE WRAPPER START === */}
         <div className="flex-1 overflow-y-auto custom-scrollbar flex flex-col relative pr-2 -mr-2">
         
-
-
         {/* 선택된 코스가 없을 때만 헤더 요소들(배너, 테마필터)을 보여줍니다 */}
         <AnimatePresence initial={false}>
           {!selectedCourse && isHeaderVisible && (
@@ -1350,7 +1938,30 @@ export default function Home() {
                     </div>
                   </div>
                 </a>
-                <PWAInstallButton />
+                <div className="md:hidden">
+                  <PWAInstallButton />
+                </div>
+                
+                {/* 미스틱 사주 크로스 프로모션 배너 (PC 전용) */}
+                <a 
+                  href="https://mystic.weknews.com" 
+                  target="_blank" 
+                  rel="noopener noreferrer"
+                  className="hidden md:block w-full bg-gradient-to-r from-purple-600 to-indigo-700 rounded-2xl p-4 shadow-lg shadow-purple-500/20 hover:shadow-purple-500/40 hover:-translate-y-1 transition-all group relative overflow-hidden mt-4"
+                >
+                  <div className="absolute -left-4 -top-4 w-24 h-24 bg-white/10 rounded-full blur-xl group-hover:bg-white/20 transition-colors"></div>
+                  <div className="relative z-10 flex items-center justify-between">
+                    <div>
+                      <h3 className="text-white font-black text-lg mb-1 flex items-center gap-2 tracking-tight">
+                        <span className="text-2xl group-hover:animate-pulse">🔮</span> 미스틱 사주
+                      </h3>
+                      <p className="text-purple-100 text-xs font-semibold">당신의 오늘 운세는 어떨까요? 무료 사주 보기</p>
+                    </div>
+                    <div className="bg-white text-purple-700 w-8 h-8 rounded-full flex items-center justify-center font-black shadow-md group-hover:scale-110 transition-transform shrink-0">
+                      ➔
+                    </div>
+                  </div>
+                </a>
               </div>
 
               {/* 테마 필터 */}
@@ -1384,28 +1995,7 @@ export default function Home() {
                 ))}
               </div>
 
-              {/* 지역 필터 */}
-              <div className="flex md:flex-wrap overflow-x-auto gap-2 pb-4 scrollbar-hide shrink-0">
-                {REGIONS.map((region) => (
-                  <button 
-                    key={region.id}
-                    onClick={() => {
-                      setActiveRegion(region.id);
-                      setActiveCuration(null);
-                      setSelectedCourse(null);
-                    }}
-                    className={`shrink-0 px-3 py-1.5 rounded-full text-xs font-bold transition-all border ${
-                      activeRegion === region.id 
-                        ? 'bg-sky-600 text-white border-sky-500 shadow-lg shadow-sky-500/30' 
-                        : 'bg-slate-800/50 text-slate-400 border-slate-700 hover:bg-slate-700'
-                    }`}
-                  >
-                    {region.name}
-                  </button>
-                ))}
-              </div>
-
-              {/* 헤더 하단 닫기(접기) 버튼 - 아주 크고 눈에 띄게 배치 */}
+              {/* 헤더 하단 닫기(접기) 버튼 */}
               <div className="w-full flex justify-center pb-2 mb-2">
                 <button 
                   onClick={() => setIsHeaderVisible(false)}
@@ -1465,30 +2055,32 @@ export default function Home() {
                   </div>
                 ))}
               </div>
-            ) : (
+                        ) : (
               <div className="flex flex-col items-center justify-center h-full text-slate-500 pb-10">
-                <span className="text-5xl mb-4">📍</span>
-                <p className="font-bold text-lg mb-2 text-slate-400">지도에서 코스를 선택해주세요</p>
+                <span className="text-5xl mb-6 opacity-40">🍁</span>
                 <p className="text-sm text-slate-600 text-center px-4">
-                  오른쪽 지도에 표시된 마커를 클릭하시면<br/>상세한 코스 정보와 뷰를 확인할 수 있습니다.
+                  테마나 지역을 선택하거나<br/>검색으로 코스를 찾아보세요
                 </p>
               </div>
             )}
           </div>
           
-          {/* 수익화 배너 영역 (구글 애드센스) - 항상 하단 고정 노출 */}
-          <div className="mt-auto pt-6 w-full shrink-0">
-            <div className="w-full h-[250px] bg-slate-800/50 rounded-xl overflow-hidden shadow-sm">
-              <AdBanner 
-                dataAdSlot="1273604121" 
-                dataAdFormat="auto" 
-                dataFullWidthResponsive={true} 
-              />
+          {/* 수익화 배너 영역 (구글 애드센스) - 코스 미선택 시에만 하단 고정 노출 */}
+          {!selectedCourse && (
+            <div className="mt-auto pt-6 w-full shrink-0">
+              <div className="w-full h-[250px] bg-slate-800/50 rounded-xl overflow-hidden shadow-sm">
+                <AdBanner 
+                  dataAdSlot="1273604121" 
+                  dataAdFormat="auto" 
+                  dataFullWidthResponsive={true} 
+                />
+              </div>
             </div>
-          </div>
+          )}
         </div>
         </div>
       </div>
+      )}
 
       <div className="flex-1 w-full relative bg-slate-900">
         {(!mapLoaded || isLoading) && (
@@ -1516,7 +2108,142 @@ export default function Home() {
             )}
           </div>
         )}
-        <div id="map" ref={mapContainerRef} className="w-full h-full bg-slate-900"></div>
+
+        {/* 단풍 CG 테스트용 날짜 슬라이더 - URL에 ?testDate=2026-10-15 추가 시 노출 */}
+        {foliageTestDate && (() => {
+          const minDate = '2026-09-01';
+          const maxDate = '2026-11-30';
+          const minTs = new Date(minDate).getTime();
+          const maxTs = new Date(maxDate).getTime();
+          const curTs = new Date(foliageTestDate).getTime();
+          const pct = Math.max(0, Math.min(100, ((curTs - minTs) / (maxTs - minTs)) * 100));
+
+          const stepDay = (dir: number) => {
+            const d = new Date(foliageTestDate);
+            d.setDate(d.getDate() + dir);
+            const s = d.toISOString().split('T')[0];
+            if (s >= minDate && s <= maxDate) setFoliageTestDate(s);
+          };
+
+          const togglePlay = () => {
+            if (isPlayingFoliage) {
+              if (foliagePlayRef.current) clearInterval(foliagePlayRef.current);
+              setIsPlayingFoliage(false);
+            } else {
+              setFoliageTestDate(minDate);
+              setIsPlayingFoliage(true);
+              foliagePlayRef.current = setInterval(() => {
+                setFoliageTestDate(prev => {
+                  const d = new Date(prev || minDate);
+                  d.setDate(d.getDate() + 3);
+                  const next = d.toISOString().split('T')[0];
+                  if (next > maxDate) {
+                    if (foliagePlayRef.current) clearInterval(foliagePlayRef.current);
+                    setIsPlayingFoliage(false);
+                    return maxDate;
+                  }
+                  return next;
+                });
+              }, 300);
+            }
+          };
+
+          const monthLabel = (s: string) => {
+            const d = new Date(s);
+            return `${d.getMonth() + 1}월 ${d.getDate()}일`;
+          };
+
+          return (
+            <div className="absolute bottom-6 right-4 z-[50] bg-slate-900/95 backdrop-blur-md border border-orange-500/40 px-5 py-4 rounded-2xl shadow-2xl flex flex-col gap-3" style={{minWidth: '280px'}}>
+              {/* 헤더 */}
+              <div className="flex items-center justify-between">
+                <span className="text-orange-400 text-sm font-black flex items-center gap-1.5">🍁 단풍 전선 시뮬레이션</span>
+                <button
+                  onClick={() => {
+                    if (foliagePlayRef.current) clearInterval(foliagePlayRef.current);
+                    setIsPlayingFoliage(false);
+                    setFoliageTestDate('');
+                  }}
+                  className="text-slate-500 hover:text-white text-xs transition-colors"
+                >✕</button>
+              </div>
+
+              {/* 현재 날짜 표시 */}
+              <div className="text-center">
+                <span className="text-white text-xl font-black tracking-wide">{monthLabel(foliageTestDate)}</span>
+                <span className="text-slate-400 text-xs ml-2">2026년</span>
+              </div>
+
+              {/* 타임라인 바 */}
+              <div className="relative w-full h-2 bg-slate-700 rounded-full overflow-hidden cursor-pointer"
+                onClick={(e) => {
+                  const rect = e.currentTarget.getBoundingClientRect();
+                  const ratio = (e.clientX - rect.left) / rect.width;
+                  const ts = minTs + ratio * (maxTs - minTs);
+                  const d = new Date(ts);
+                  setFoliageTestDate(d.toISOString().split('T')[0]);
+                }}
+              >
+                <div
+                  className="absolute left-0 top-0 h-full rounded-full transition-all"
+                  style={{
+                    width: `${pct}%`,
+                    background: 'linear-gradient(90deg, #22c55e, #f97316, #dc2626)'
+                  }}
+                />
+                <div
+                  className="absolute top-1/2 -translate-y-1/2 w-3.5 h-3.5 bg-white rounded-full shadow-lg border-2 border-orange-400 transition-all"
+                  style={{ left: `calc(${pct}% - 7px)` }}
+                />
+              </div>
+
+              {/* 월 라벨 */}
+              <div className="flex justify-between text-slate-500 text-[10px]">
+                <span>9월</span><span>10월</span><span>11월</span>
+              </div>
+
+              {/* 컨트롤 버튼 */}
+              <div className="flex items-center justify-center gap-3">
+                <button
+                  onClick={() => stepDay(-7)}
+                  className="w-8 h-8 rounded-full bg-slate-700 hover:bg-slate-600 text-white text-sm flex items-center justify-center transition-all"
+                >⏮</button>
+                <button
+                  onClick={() => stepDay(-1)}
+                  className="w-8 h-8 rounded-full bg-slate-700 hover:bg-slate-600 text-white text-sm flex items-center justify-center transition-all"
+                >◀</button>
+                <button
+                  onClick={togglePlay}
+                  className={`w-12 h-12 rounded-full text-white text-xl flex items-center justify-center transition-all shadow-lg ${
+                    isPlayingFoliage
+                      ? 'bg-orange-500 hover:bg-orange-600 scale-110'
+                      : 'bg-gradient-to-br from-orange-500 to-red-500 hover:scale-105'
+                  }`}
+                >{isPlayingFoliage ? '⏸' : '▶'}</button>
+                <button
+                  onClick={() => stepDay(1)}
+                  className="w-8 h-8 rounded-full bg-slate-700 hover:bg-slate-600 text-white text-sm flex items-center justify-center transition-all"
+                >▶</button>
+                <button
+                  onClick={() => stepDay(7)}
+                  className="w-8 h-8 rounded-full bg-slate-700 hover:bg-slate-600 text-white text-sm flex items-center justify-center transition-all"
+                >⏭</button>
+              </div>
+
+              {/* 날짜 직접 입력 */}
+              <input
+                type="date"
+                value={foliageTestDate}
+                min={minDate}
+                max={maxDate}
+                onChange={e => setFoliageTestDate(e.target.value)}
+                className="bg-slate-800 border border-slate-600 text-white text-xs px-2 py-1 rounded-lg focus:outline-none focus:border-orange-500 w-full"
+              />
+            </div>
+          );
+        })()}
+
+        <div id="map" ref={mapContainerRef} className={`w-full h-full bg-slate-900 ${isMobile && activeTab !== 'map' ? 'hidden' : 'block'}`}></div>
 
         {/* 🗺️ PC 전용: 플로팅 큐레이션 위젯 (지도 위) */}
         <div className="hidden md:flex absolute top-6 left-6 z-20 flex-wrap gap-2 max-w-[calc(100vw-450px)]">
@@ -1637,29 +2364,94 @@ export default function Home() {
         </div>
       </div>
 
-      {/* 모바일 하단 코스 디테일 바텀 시트 (100% 네이티브 느낌) */}
-      {isMobile && (
-        <BottomSheet
-          open={!!selectedCourse}
-          onDismiss={closeCourse}
-          snapPoints={({ maxHeight }) => [maxHeight * 0.85, maxHeight * 0.5]}
-          defaultSnap={({ maxHeight }) => maxHeight * 0.5}
-          className="drive-map-bottom-sheet"
-        >
-          <div className="p-6 pt-0 pb-12">
-            {selectedCourse && renderCourseDetails(false)}
+      {/* 모바일 하단 코스 디테일 바텀 시트 (Framer Motion 기반의 고성능 네이티브 구현) */}
+      <AnimatePresence>
+        {isMobile && selectedCourse && (
+          <div className="fixed inset-0 z-40 pointer-events-none">
+            {!isSheetMinimized ? (
+              <>
+                {/* 배경 어두운 오버레이 (클릭 시 요약 배너로 축소) */}
+                <motion.div
+                  initial={{ opacity: 0 }}
+                  animate={{ opacity: 1 }}
+                  exit={{ opacity: 0 }}
+                  onClick={() => setIsSheetMinimized(true)}
+                  className="absolute inset-0 bg-slate-950/60 backdrop-blur-xs pointer-events-auto z-10"
+                />
+                {/* 바텀 시트 메인 컨테이너 */}
+                <motion.div
+                  initial={{ y: "100%" }}
+                  animate={{ y: 0 }}
+                  exit={{ y: "100%" }}
+                  transition={{ type: "spring", damping: 25, stiffness: 220 }}
+                  drag="y"
+                  dragConstraints={{ top: 0, bottom: 0 }}
+                  dragElastic={{ top: 0.1, bottom: 0.9 }}
+                  onDragEnd={(e, info) => {
+                    // 아래 방향으로 100px 이상 드래그하면 요약 배너로 축소
+                    if (info.offset.y > 100) {
+                      setIsSheetMinimized(true);
+                    }
+                  }}
+                  className="absolute bottom-0 left-0 right-0 z-20 bg-slate-900 border-t border-slate-800 rounded-t-[2.5rem] shadow-[0_-15px_40px_rgba(0,0,0,0.5)] flex flex-col max-h-[85vh] overflow-hidden pointer-events-auto text-left"
+                >
+                  {/* 드래그 핸들 바 */}
+                  <div className="w-full py-4 flex justify-center cursor-grab active:cursor-grabbing shrink-0 border-b border-slate-800/40">
+                    <div className="w-12 h-1.5 bg-slate-700 rounded-full" />
+                  </div>
+                  
+                  {/* 바텀 시트 콘텐츠 (세로 스크롤 가능) */}
+                  <div className="overflow-y-auto px-6 pt-3 pb-12">
+                    {renderCourseDetails(false)}
+                  </div>
+                </motion.div>
+              </>
+            ) : (
+              /* 축소(최소화) 상태일 때: 어두운 배경을 걷어내 지도를 보여주고 하단에 슬림형 요약 카드 배너 노출 */
+              <div 
+                onClick={() => setIsSheetMinimized(false)}
+                className="absolute bottom-6 left-4 right-4 bg-slate-900/95 backdrop-blur-md border border-slate-800 rounded-2xl p-4 shadow-[0_10px_30px_rgba(0,0,0,0.5)] pointer-events-auto z-20 cursor-pointer hover:bg-slate-800 transition-all flex items-center justify-between gap-4 animate-fade-in"
+              >
+                <div className="flex-1 min-w-0">
+                  <h3 className="text-white font-extrabold text-xs truncate">{selectedCourse.title}</h3>
+                  <div className="flex gap-2 items-center mt-1">
+                    <span className="text-[10px] text-indigo-400 font-bold">
+                      {(() => {
+                        const cached = cachedPathsRef.current[selectedCourse.id];
+                        if (cached?.distance) return `${(cached.distance / 1000).toFixed(1)}km`;
+                        return selectedCourse.distance || "";
+                      })()}
+                    </span>
+                    <span className="text-[10px] text-slate-400">
+                      {(() => {
+                        const cached = cachedPathsRef.current[selectedCourse.id];
+                        if (cached?.duration) return `${Math.ceil(cached.duration / 60)}분`;
+                        return selectedCourse.duration || "";
+                      })()}
+                    </span>
+                  </div>
+                </div>
+                <div className="flex items-center gap-2 shrink-0">
+                  <span className="bg-indigo-600/20 text-indigo-400 text-[10px] font-black px-2.5 py-1.5 rounded-lg border border-indigo-500/30">
+                    상세보기 🔼
+                  </span>
+                  <button
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      closeCourse(false); // ✕를 누르면 목록으로 가지 않고 지도만 닫음
+                    }}
+                    className="w-8 h-8 rounded-full bg-slate-800 hover:bg-slate-700 text-slate-400 hover:text-white flex items-center justify-center text-xs font-black border border-slate-700/50"
+                  >
+                    ✕
+                  </button>
+                </div>
+              </div>
+            )}
           </div>
-        </BottomSheet>
-      )}
+        )}
+      </AnimatePresence>
 
-      {/* 좌측 하단 제안 및 문의 플로팅 버튼 */}
-      <button
-        onClick={() => setIsInquiryModalOpen(true)}
-        className="fixed bottom-6 left-6 z-50 bg-slate-800/90 backdrop-blur-md text-slate-300 hover:text-white px-4 py-3 rounded-full shadow-[0_4px_20px_rgba(0,0,0,0.5)] border border-slate-700 flex items-center justify-center gap-2 transition-all hover:-translate-y-1 hover:shadow-indigo-500/20 active:scale-95 group"
-      >
-        <span className="text-xl group-hover:animate-bounce">💡</span>
-        <span className="text-sm font-bold tracking-tight">제안 및 문의</span>
-      </button>
+
 
       {/* 문의하기 팝업 모달 */}
       <AnimatePresence>
@@ -1746,6 +2538,33 @@ export default function Home() {
           </motion.div>
         )}
       </AnimatePresence>
+
+      {/* 모바일 전용 탭 전환 버튼 - 코스 상세 및 미니 요약 카드를 볼 때는 화면을 가리지 않도록 숨김 처리 */}
+      {isMounted && isMobile && !selectedCourse && (
+        <button
+          onClick={() => {
+            const nextTab = activeTab === 'list' ? 'map' : 'list';
+            setActiveTab(nextTab);
+            if (nextTab === 'list') {
+              setSelectedCourse(null);
+              if (window.location.hash === '#course') {
+                window.history.back();
+              }
+            }
+          }}
+          className="fixed bottom-6 right-6 z-50 bg-gradient-to-r from-orange-600 via-amber-600 to-red-600 hover:from-orange-500 hover:to-red-500 text-white font-extrabold px-6 py-4 rounded-full shadow-[0_10px_35px_rgba(249,115,22,0.6)] border border-white/20 flex items-center justify-center gap-2.5 active:scale-95 hover:scale-105 transition-all duration-300 ring-2 ring-white/10"
+        >
+          {activeTab === 'list' ? (
+            <>
+              <span className="text-lg animate-bounce">🗺️</span> <span className="tracking-tight text-sm">지도 보기</span>
+            </>
+          ) : (
+            <>
+              <span className="text-lg">📋</span> <span className="tracking-tight text-sm">목록 보기</span>
+            </>
+          )}
+        </button>
+      )}
 
     </div>
   );
