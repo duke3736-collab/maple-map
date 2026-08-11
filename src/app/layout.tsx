@@ -1,6 +1,6 @@
 import type { Metadata, Viewport } from "next";
 import Script from "next/script";
-import CollapsibleAdBanner from "@/components/CollapsibleAdBanner";
+import BottomAnchorAd from "@/components/BottomAnchorAd";
 import "./globals.css";
 
 export const metadata: Metadata = {
@@ -103,12 +103,12 @@ export default function RootLayout({
         className="bg-[#291c0e] text-amber-50 font-sans antialiased selection:bg-orange-500 selection:text-white"
       >
         <main className="w-full min-h-screen bg-[#291c0e] relative flex flex-col">
-          <div className="flex-1 relative w-full h-full">
+          <div className="flex-1 relative w-full h-full pb-16">
             {children}
           </div>
 
-          {/* 하단 접이식 애드센스 광고 배너 */}
-          <CollapsibleAdBanner position="bottom" dataAdSlot="1273604121" />
+          {/* 사진과 동일한 하단 쏙 내려가는 플로팅 애드센스 광고 */}
+          <BottomAnchorAd dataAdSlot="1273604121" />
         </main>
       </body>
     </html>
