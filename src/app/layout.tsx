@@ -103,9 +103,6 @@ export default function RootLayout({
         className="bg-[#291c0e] text-amber-50 font-sans antialiased selection:bg-orange-500 selection:text-white"
       >
         <main className="w-full min-h-screen bg-[#291c0e] relative flex flex-col">
-          {/* 상단 접이식 애드센스 광고 배너 */}
-          <CollapsibleAdBanner position="top" dataAdSlot="1273604121" />
-
           <div className="flex-1 relative w-full h-full">
             {children}
           </div>
