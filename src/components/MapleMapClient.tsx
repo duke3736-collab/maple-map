@@ -1243,32 +1243,16 @@ export default function MapleMapClient() {
           </button>
         </div>
         
-        {/* 쿠팡 파트너스 배너 (수익화 - 등산/피크닉 용품) */}
+        {/* 구글 애드센스 광고 배너 */}
         <div className="mt-6 mb-2 hidden md:block">
-          <a 
-            href="https://link.coupang.com/a/eaOsmrTrTU" 
-            target="_blank" 
-            rel="noopener noreferrer"
-            className="block w-full rounded-xl overflow-hidden shadow-lg hover:-translate-y-1 transition-transform relative group border border-slate-700"
-          >
-            {/* 고품질 등산용품 배경 이미지 */}
-            <div className="absolute inset-0 bg-[url('https://images.unsplash.com/photo-1551632811-561732d1e306?auto=format&fit=crop&q=80&w=800')] bg-cover bg-center"></div>
-            
-            {/* 오버레이 그라데이션 (텍스트가 잘 보이도록 어둡게 처리) */}
-            <div className="absolute inset-0 bg-gradient-to-r from-slate-900/95 via-slate-900/80 to-transparent"></div>
-            
-            <div className="flex items-center justify-between relative z-10 p-5">
-              <div>
-                <span className="bg-rose-500 text-white text-[10px] font-black px-2 py-0.5 rounded-sm tracking-wider mb-2 inline-block shadow-md">HOT 특가</span>
-                <p className="text-white font-black text-base mb-1 drop-shadow-md">가을 산행 필수템 총집합! 🥾</p>
-                <p className="text-slate-300 text-xs font-medium">등산화 / 피크닉 돗자리 / 보온병 로켓배송</p>
-              </div>
-              <div className="bg-white/20 backdrop-blur-sm text-white w-8 h-8 rounded-full flex items-center justify-center font-black shadow-md group-hover:bg-rose-500 transition-colors border border-white/30">
-                ➔
-              </div>
-            </div>
-            <p className="text-[8px] text-white/50 absolute bottom-1 right-2 z-10 bg-black/40 px-1 rounded">이 포스팅은 쿠팡 파트너스 활동의 일환으로, 이에 따른 일정액의 수수료를 제공받습니다.</p>
-          </a>
+          <div className="w-full bg-slate-900/80 backdrop-blur-lg rounded-2xl border border-slate-700/80 p-3 shadow-lg flex flex-col justify-center items-center">
+            <span className="text-[10px] text-slate-500 font-bold mb-1">SPONSORED</span>
+            <AdBanner 
+              dataAdSlot="1273604121" 
+              dataAdFormat="auto" 
+              dataFullWidthResponsive={true} 
+            />
+          </div>
         </div>
 
         {/* 카카오톡 공유 버튼 */}
@@ -1980,6 +1964,48 @@ export default function MapleMapClient() {
                     </div>
                   </div>
                 </a>
+
+                {/* 테스트모아 랜드 크로스 프로모션 배너 */}
+                <a 
+                  href="https://test.weknews.com" 
+                  target="_blank" 
+                  rel="noopener noreferrer"
+                  className="w-full bg-gradient-to-r from-pink-500 to-rose-600 rounded-2xl p-4 shadow-lg shadow-pink-500/20 hover:shadow-pink-500/40 hover:-translate-y-1 transition-all group relative overflow-hidden mt-4 block"
+                >
+                  <div className="absolute -right-4 -top-4 w-24 h-24 bg-white/20 rounded-full blur-xl group-hover:bg-white/30 transition-colors"></div>
+                  <div className="relative z-10 flex items-center justify-between">
+                    <div>
+                      <h3 className="text-white font-black text-lg mb-1 flex items-center gap-2 tracking-tight">
+                        <span className="text-2xl group-hover:animate-bounce">🎈</span> 테스트모아 랜드
+                      </h3>
+                      <p className="text-pink-100 text-xs font-semibold">MBTI, IQ, 돼지력, 미니게임 39종 무료!</p>
+                    </div>
+                    <div className="bg-white text-rose-600 w-8 h-8 rounded-full flex items-center justify-center font-black shadow-md group-hover:scale-110 transition-transform shrink-0">
+                      ➔
+                    </div>
+                  </div>
+                </a>
+
+                {/* 웤뉴스 크로스 프로모션 배너 */}
+                <a 
+                  href="https://weknews.com" 
+                  target="_blank" 
+                  rel="noopener noreferrer"
+                  className="w-full bg-gradient-to-r from-amber-500 to-orange-600 rounded-2xl p-4 shadow-lg shadow-amber-500/20 hover:shadow-amber-500/40 hover:-translate-y-1 transition-all group relative overflow-hidden mt-4 block"
+                >
+                  <div className="absolute -left-4 -top-4 w-24 h-24 bg-white/20 rounded-full blur-xl group-hover:bg-white/30 transition-colors"></div>
+                  <div className="relative z-10 flex items-center justify-between">
+                    <div>
+                      <h3 className="text-white font-black text-lg mb-1 flex items-center gap-2 tracking-tight">
+                        <span className="text-2xl group-hover:animate-pulse">📰</span> 웤뉴스 공식 매거진
+                      </h3>
+                      <p className="text-amber-100 text-xs font-semibold">유용한 지원금, 세금, 금융 정보 한눈에 보기</p>
+                    </div>
+                    <div className="bg-white text-amber-700 w-8 h-8 rounded-full flex items-center justify-center font-black shadow-md group-hover:scale-110 transition-transform shrink-0">
+                      ➔
+                    </div>
+                  </div>
+                </a>
               </div>
 
               {/* 테마 필터 */}
@@ -2328,57 +2354,7 @@ export default function MapleMapClient() {
               />
             </div>
           </div>
-          
-          {/* 두 번째 커스텀 배너 (쿠팡 파트너스 자동차용품 수동 배너) */}
-          <a
-            href="https://link.coupang.com/a/d9aFVtygcC" 
-            target="_blank"
-            rel="noopener noreferrer" 
-            className="group relative w-full h-[250px] bg-slate-900/80 backdrop-blur-lg rounded-2xl border border-slate-700/80 p-5 shadow-[0_10px_30px_rgba(0,0,0,0.5)] overflow-hidden flex flex-col justify-end shrink-0 transition-all hover:-translate-y-1 hover:shadow-sky-500/20"
-          >
-            {/* 자동차용품 배경 이미지 (어둡게 처리) */}
-            <div className="absolute inset-0 bg-[url('https://images.unsplash.com/photo-1601362840469-51e4d8d58785?q=80&w=800&auto=format&fit=crop')] bg-cover bg-center opacity-40 group-hover:opacity-60 group-hover:scale-110 transition-all duration-700"></div>
-            <div className="absolute inset-0 bg-gradient-to-t from-slate-950 via-slate-900/70 to-transparent"></div>
-            
-            <div className="relative z-10 flex flex-col gap-1.5">
-              <span className="bg-sky-500 text-white text-[10px] font-black px-2 py-1 rounded w-fit tracking-wider shadow-lg">CAR ACCESSORIES</span>
-              <h3 className="text-white font-black text-xl leading-tight mt-1 group-hover:text-sky-100 transition-colors drop-shadow-md">
-                가을 산행 필수템 총집합!<br/>등산/피크닉 용품 로켓배송
-              </h3>
-              <p className="text-slate-300 text-xs font-medium mt-1 flex items-center gap-1">
-                쿠팡 자동차용품 기획전 <span className="group-hover:translate-x-1 transition-transform">→</span>
-              </p>
-            </div>
-          </a>
 
-          {/* 세 번째 커스텀 배너 (쿠팡 파트너스 호텔/여행 수동 배너) */}
-          <a
-            href="https://link.coupang.com/a/d9adnYXKtE" 
-            target="_blank"
-            rel="noopener noreferrer" 
-            className="group relative w-full h-[250px] bg-slate-900/80 backdrop-blur-lg rounded-2xl border border-slate-700/80 p-5 shadow-[0_10px_30px_rgba(0,0,0,0.5)] overflow-hidden flex flex-col justify-end shrink-0 transition-all hover:-translate-y-1 hover:shadow-rose-500/20"
-          >
-            {/* 호캉스 배경 이미지 (어둡게 처리) */}
-            <div className="absolute inset-0 bg-[url('https://images.unsplash.com/photo-1566073771259-6a8506099945?q=80&w=800&auto=format&fit=crop')] bg-cover bg-center opacity-40 group-hover:opacity-60 group-hover:scale-110 transition-all duration-700"></div>
-            <div className="absolute inset-0 bg-gradient-to-t from-slate-950 via-slate-900/70 to-transparent"></div>
-            
-            <div className="relative z-10 flex flex-col gap-1.5">
-              <span className="bg-rose-500 text-white text-[10px] font-black px-2 py-1 rounded w-fit tracking-wider shadow-lg">HOTEL & RESORT</span>
-              <h3 className="text-white font-black text-xl leading-tight mt-1 group-hover:text-rose-100 transition-colors drop-shadow-md">
-                단풍놀이 후 꿀맛 휴식!<br/>전국 호캉스 특가 예약
-              </h3>
-              <p className="text-slate-300 text-xs font-medium mt-1 flex items-center gap-1">
-                쿠팡 트래블 특가 보러가기 <span className="group-hover:translate-x-1 transition-transform">→</span>
-              </p>
-            </div>
-          </a>
-          
-          {/* 쿠팡 파트너스 대가성 문구 (법적 의무) */}
-          <div className="w-full text-center py-3 px-3 bg-slate-900/60 backdrop-blur-lg rounded-xl border border-slate-700/50 shrink-0 mt-2">
-            <p className="text-[11px] text-slate-400 leading-relaxed">
-              이 포스팅은 쿠팡 파트너스 활동의 일환으로,<br/>이에 따른 일정액의 수수료를 제공받습니다.
-            </p>
-          </div>
         </div>
       </div>
 
