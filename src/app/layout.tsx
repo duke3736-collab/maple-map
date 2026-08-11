@@ -1,5 +1,6 @@
 import type { Metadata, Viewport } from "next";
 import Script from "next/script";
+import AdBanner from "@/components/AdBanner";
 import "./globals.css";
 
 export const metadata: Metadata = {
@@ -53,7 +54,7 @@ export default function RootLayout({
   children: React.ReactNode;
 }>) {
   return (
-    <html lang="ko" style={{ position: 'fixed', inset: 0, overflow: 'hidden', backgroundColor: '#291c0e', width: '100vw', height: '100vh', touchAction: 'none' }}>
+    <html lang="ko">
       <head>
         <Script
           async
@@ -99,14 +100,22 @@ export default function RootLayout({
       </head>
       <body 
         suppressHydrationWarning 
-        className="bg-[#291c0e] text-amber-50 font-sans antialiased selection:bg-orange-500 selection:text-white overscroll-none"
-        style={{ position: 'fixed', inset: 0, overflow: 'hidden', backgroundColor: '#291c0e', width: '100vw', height: '100vh', touchAction: 'none' }}
+        className="bg-[#291c0e] text-amber-50 font-sans antialiased selection:bg-orange-500 selection:text-white"
       >
-        <main 
-          className="fixed inset-0 w-full h-full bg-[#291c0e] overflow-hidden"
-          style={{ position: 'fixed', inset: 0, width: '100vw', height: '100vh', overflow: 'hidden' }}
-        >
-          {children}
+        <main className="w-full min-h-screen bg-[#291c0e] relative flex flex-col">
+          {/* 상단 고정 애드센스 광고 배너 */}
+          <div className="w-full bg-[#1e140a] border-b border-amber-900/40 p-2 z-50 relative flex justify-center items-center shrink-0">
+            <AdBanner dataAdSlot="1273604121" dataAdFormat="auto" dataFullWidthResponsive={true} />
+          </div>
+
+          <div className="flex-1 relative w-full h-full">
+            {children}
+          </div>
+
+          {/* 하단 고정 애드센스 광고 배너 */}
+          <div className="w-full bg-[#1e140a] border-t border-amber-900/40 p-2 z-50 relative flex justify-center items-center shrink-0">
+            <AdBanner dataAdSlot="1273604121" dataAdFormat="auto" dataFullWidthResponsive={true} />
+          </div>
         </main>
       </body>
     </html>
