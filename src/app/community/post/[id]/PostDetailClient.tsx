@@ -2,7 +2,8 @@
 
 import { useState, useEffect } from 'react';
 import Link from 'next/link';
-import { getStoredPosts, getPostById, incrementViews, addComment, PostItem } from '@/lib/postsStore';
+import { useRouter } from 'next/navigation';
+import { getStoredPosts, getPostById, incrementViews, addComment, deletePost, updatePost, deleteComment, PostItem } from '@/lib/postsStore';
 import AdBanner from '@/components/AdBanner';
 import WordPressBanners from '@/components/WordPressBanners';
 import MapleShareButtons from '@/components/MapleShareButtons';
@@ -28,6 +29,24 @@ export default function PostDetailClient({ postId, initialPost }: { postId: stri
   const [commentContent, setCommentContent] = useState('');
   const [commentPassword, setCommentPassword] = useState('1234');
   const [copied, setCopied] = useState(false);
+  const router = useRouter();
+
+  // 삭제 모달
+  const [showDeleteModal, setShowDeleteModal] = useState(false);
+  const [deletePassword, setDeletePassword] = useState('');
+  const [deleteError, setDeleteError] = useState('');
+
+  // 수정 모달
+  const [showEditModal, setShowEditModal] = useState(false);
+  const [editPassword, setEditPassword] = useState('');
+  const [editTitle, setEditTitle] = useState('');
+  const [editContent, setEditContent] = useState('');
+  const [editError, setEditError] = useState('');
+
+  // 댓글 삭제 모달
+  const [deletingCommentId, setDeletingCommentId] = useState<string | null>(null);
+  const [commentDeletePassword, setCommentDeletePassword] = useState('');
+  const [commentDeleteError, setCommentDeleteError] = useState('');
 
   useEffect(() => {
     // 1. 조회수 1 누적 증가 (세션당 1회씩 실시간 누적)
@@ -71,6 +90,53 @@ export default function PostDetailClient({ postId, initialPost }: { postId: stri
       navigator.clipboard.writeText(window.location.href);
       setCopied(true);
       setTimeout(() => setCopied(false), 2000);
+    }
+  };
+
+  const handleDeletePost = () => {
+    const ok = deletePost(postId, deletePassword);
+    if (ok) {
+      setShowDeleteModal(false);
+      router.push('/community');
+    } else {
+      setDeleteError('비밀번호가 일치하지 않습니다.');
+    }
+  };
+
+  const handleEditPost = () => {
+    if (!editPassword || !editTitle.trim() || !editContent.trim()) {
+      setEditError('모든 항목을 입력해주세요.');
+      return;
+    }
+    const updated = updatePost(postId, editPassword, { title: editTitle, content: editContent });
+    if (updated) {
+      setPost({ ...updated });
+      setShowEditModal(false);
+      setEditError('');
+    } else {
+      setEditError('비밀번호가 일치하지 않습니다.');
+    }
+  };
+
+  const openEditModal = () => {
+    if (!post) return;
+    setEditTitle(post.title);
+    setEditContent(post.content);
+    setEditPassword('');
+    setEditError('');
+    setShowEditModal(true);
+  };
+
+  const handleDeleteComment = () => {
+    if (!deletingCommentId) return;
+    const updated = deleteComment(postId, deletingCommentId, commentDeletePassword);
+    if (updated) {
+      setPost({ ...updated });
+      setDeletingCommentId(null);
+      setCommentDeletePassword('');
+      setCommentDeleteError('');
+    } else {
+      setCommentDeleteError('비밀번호가 일치하지 않습니다.');
     }
   };
 
@@ -204,6 +270,18 @@ export default function PostDetailClient({ postId, initialPost }: { postId: stri
             </button>
           </div>
           <div className="flex items-center gap-2">
+            <button
+              onClick={openEditModal}
+              className="bg-blue-600 hover:bg-blue-500 text-white font-bold px-3 py-1.5 rounded-md transition"
+            >
+              수정
+            </button>
+            <button
+              onClick={() => { setDeletePassword(''); setDeleteError(''); setShowDeleteModal(true); }}
+              className="bg-red-700 hover:bg-red-600 text-white font-bold px-3 py-1.5 rounded-md transition"
+            >
+              삭제
+            </button>
             <Link
               href="/community/write"
               className="bg-orange-600 hover:bg-orange-500 text-white font-bold px-3 py-1.5 rounded-md transition"
@@ -349,6 +427,96 @@ export default function PostDetailClient({ postId, initialPost }: { postId: stri
         <WordPressBanners />
 
       </div>
+
+      {/* ── 🗑️ 글 삭제 모달 ── */}
+      {showDeleteModal && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm px-4">
+          <div className="bg-[#291c0e] border border-red-700/50 rounded-2xl p-6 w-full max-w-sm shadow-2xl">
+            <h3 className="text-lg font-bold text-white mb-2">글 삭제</h3>
+            <p className="text-sm text-amber-200/70 mb-4">삭제 비밀번호를 입력하세요. 삭제 후 복구가 불가합니다.</p>
+            <input
+              type="password"
+              placeholder="비밀번호 입력"
+              value={deletePassword}
+              onChange={e => { setDeletePassword(e.target.value); setDeleteError(''); }}
+              className="w-full bg-[#4d3620] border border-[#5e432a] text-amber-50 text-sm rounded-xl px-4 py-2.5 mb-2 focus:outline-none focus:border-red-500"
+              onKeyDown={e => e.key === 'Enter' && handleDeletePost()}
+            />
+            {deleteError && <p className="text-xs text-red-400 mb-2">{deleteError}</p>}
+            <div className="flex gap-2 justify-end mt-4">
+              <button onClick={() => setShowDeleteModal(false)} className="px-4 py-2 text-sm text-amber-200/70 bg-[#3e2a14] border border-[#5e432a] rounded-xl hover:bg-[#4d3620] transition">취소</button>
+              <button onClick={handleDeletePost} className="px-4 py-2 text-sm font-bold text-white bg-red-700 hover:bg-red-600 rounded-xl transition">삭제 확인</button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* ── ✏️ 글 수정 모달 ── */}
+      {showEditModal && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm px-4">
+          <div className="bg-[#291c0e] border border-blue-700/50 rounded-2xl p-6 w-full max-w-lg shadow-2xl">
+            <h3 className="text-lg font-bold text-white mb-4">글 수정</h3>
+            <div className="space-y-3">
+              <div>
+                <label className="text-xs text-amber-200/70 block mb-1">제목</label>
+                <input
+                  type="text"
+                  value={editTitle}
+                  onChange={e => setEditTitle(e.target.value)}
+                  className="w-full bg-[#4d3620] border border-[#5e432a] text-amber-50 text-sm rounded-xl px-4 py-2.5 focus:outline-none focus:border-blue-500"
+                />
+              </div>
+              <div>
+                <label className="text-xs text-amber-200/70 block mb-1">내용</label>
+                <textarea
+                  value={editContent}
+                  onChange={e => setEditContent(e.target.value)}
+                  rows={6}
+                  className="w-full bg-[#4d3620] border border-[#5e432a] text-amber-50 text-sm rounded-xl px-4 py-3 focus:outline-none focus:border-blue-500 resize-y"
+                />
+              </div>
+              <div>
+                <label className="text-xs text-amber-200/70 block mb-1">비밀번호 확인</label>
+                <input
+                  type="password"
+                  placeholder="작성 시 입력한 비밀번호"
+                  value={editPassword}
+                  onChange={e => { setEditPassword(e.target.value); setEditError(''); }}
+                  className="w-full bg-[#4d3620] border border-[#5e432a] text-amber-50 text-sm rounded-xl px-4 py-2.5 focus:outline-none focus:border-blue-500"
+                />
+              </div>
+              {editError && <p className="text-xs text-red-400">{editError}</p>}
+            </div>
+            <div className="flex gap-2 justify-end mt-5">
+              <button onClick={() => setShowEditModal(false)} className="px-4 py-2 text-sm text-amber-200/70 bg-[#3e2a14] border border-[#5e432a] rounded-xl hover:bg-[#4d3620] transition">취소</button>
+              <button onClick={handleEditPost} className="px-4 py-2 text-sm font-bold text-white bg-blue-600 hover:bg-blue-500 rounded-xl transition">수정 완료</button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* ── 💬 댓글 삭제 모달 ── */}
+      {deletingCommentId && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm px-4">
+          <div className="bg-[#291c0e] border border-red-700/40 rounded-2xl p-6 w-full max-w-sm shadow-2xl">
+            <h3 className="text-base font-bold text-white mb-2">댓글 삭제</h3>
+            <p className="text-sm text-amber-200/70 mb-4">댓글 작성 시 입력한 비밀번호를 입력하세요.</p>
+            <input
+              type="password"
+              placeholder="비밀번호 입력"
+              value={commentDeletePassword}
+              onChange={e => { setCommentDeletePassword(e.target.value); setCommentDeleteError(''); }}
+              className="w-full bg-[#4d3620] border border-[#5e432a] text-amber-50 text-sm rounded-xl px-4 py-2.5 mb-2 focus:outline-none focus:border-red-500"
+              onKeyDown={e => e.key === 'Enter' && handleDeleteComment()}
+            />
+            {commentDeleteError && <p className="text-xs text-red-400 mb-2">{commentDeleteError}</p>}
+            <div className="flex gap-2 justify-end mt-4">
+              <button onClick={() => { setDeletingCommentId(null); setCommentDeleteError(''); }} className="px-4 py-2 text-sm text-amber-200/70 bg-[#3e2a14] border border-[#5e432a] rounded-xl hover:bg-[#4d3620] transition">취소</button>
+              <button onClick={handleDeleteComment} className="px-4 py-2 text-sm font-bold text-white bg-red-700 hover:bg-red-600 rounded-xl transition">삭제 확인</button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }

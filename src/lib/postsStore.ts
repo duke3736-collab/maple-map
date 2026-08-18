@@ -294,3 +294,38 @@ export function incrementViews(postId: string): void {
     savePosts(posts);
   }
 }
+
+export function deletePost(postId: string, password: string): boolean {
+  const posts = getStoredPosts();
+  const post = posts.find(p => p.id === postId);
+  if (!post) return false;
+  if (post.passwordHash !== password) return false;
+  const updated = posts.filter(p => p.id !== postId);
+  savePosts(updated);
+  return true;
+}
+
+export function updatePost(
+  postId: string,
+  password: string,
+  patch: Partial<Pick<PostItem, 'title' | 'content' | 'category' | 'regionId' | 'regionName' | 'ctaText' | 'ctaUrl'>>
+): PostItem | null {
+  const posts = getStoredPosts();
+  const post = posts.find(p => p.id === postId);
+  if (!post) return null;
+  if (post.passwordHash !== password) return null;
+  Object.assign(post, patch);
+  savePosts(posts);
+  return post;
+}
+
+export function deleteComment(postId: string, commentId: string, password: string): PostItem | undefined {
+  const posts = getStoredPosts();
+  const post = posts.find(p => p.id === postId);
+  if (!post) return undefined;
+  const comment = post.comments.find(c => c.id === commentId);
+  if (!comment || comment.passwordHash !== password) return undefined;
+  post.comments = post.comments.filter(c => c.id !== commentId);
+  savePosts(posts);
+  return post;
+}
