@@ -1937,7 +1937,26 @@ export default function MapleMapClient() {
 
               {/* 자사 서비스(씨맵) 크로스 프로모션 배너 및 PWA 설치 */}
               <div className="mb-6">
+                {/* 단풍 커뮤니티 크로스 프로모션 배너 (상단) */}
                 <a 
+                  href="/community"
+                  className="block w-full bg-gradient-to-r from-orange-500 via-amber-500 to-orange-600 rounded-2xl p-4 shadow-lg shadow-orange-500/30 hover:shadow-orange-500/50 hover:-translate-y-1 transition-all group relative overflow-hidden mb-4"
+                >
+                  <div className="absolute -right-4 -top-4 w-24 h-24 bg-white/20 rounded-full blur-xl group-hover:bg-white/30 transition-colors"></div>
+                  <div className="absolute left-1/2 bottom-0 w-16 h-16 bg-red-400/20 rounded-full blur-lg"></div>
+                  <div className="relative z-10 flex items-center justify-between">
+                    <div>
+                      <h3 className="text-white font-black text-lg mb-1 flex items-center gap-2 tracking-tight">
+                        <span className="text-2xl group-hover:animate-bounce">💬</span> 단풍 커뮤니티 톡
+                      </h3>
+                      <p className="text-orange-100 text-xs font-semibold">단풍 명소 후기 · 동행 · 질문 자유롭게 나눠요!</p>
+                    </div>
+                    <div className="bg-white text-orange-600 w-8 h-8 rounded-full flex items-center justify-center font-black shadow-md group-hover:scale-110 transition-transform shrink-0">
+                      ➔
+                    </div>
+                  </div>
+                </a>
+                                <a 
                   href="https://drive.weknews.com/" 
                   target="_blank" 
                   rel="noopener noreferrer"
@@ -1960,26 +1979,6 @@ export default function MapleMapClient() {
                   <PWAInstallButton />
                 </div>
                 
-                {/* 미스틱 사주 크로스 프로모션 배너 (PC 전용) */}
-                <a 
-                  href="https://mystic.weknews.com" 
-                  target="_blank" 
-                  rel="noopener noreferrer"
-                  className="hidden md:block w-full bg-gradient-to-r from-purple-600 to-indigo-700 rounded-2xl p-4 shadow-lg shadow-purple-500/20 hover:shadow-purple-500/40 hover:-translate-y-1 transition-all group relative overflow-hidden mt-4"
-                >
-                  <div className="absolute -left-4 -top-4 w-24 h-24 bg-white/10 rounded-full blur-xl group-hover:bg-white/20 transition-colors"></div>
-                  <div className="relative z-10 flex items-center justify-between">
-                    <div>
-                      <h3 className="text-white font-black text-lg mb-1 flex items-center gap-2 tracking-tight">
-                        <span className="text-2xl group-hover:animate-pulse">🔮</span> 미스틱 사주
-                      </h3>
-                      <p className="text-purple-100 text-xs font-semibold">당신의 오늘 운세는 어떨까요? 무료 사주 보기</p>
-                    </div>
-                    <div className="bg-white text-purple-700 w-8 h-8 rounded-full flex items-center justify-center font-black shadow-md group-hover:scale-110 transition-transform shrink-0">
-                      ➔
-                    </div>
-                  </div>
-                </a>
 
                 {/* 테스트모아 랜드 크로스 프로모션 배너 */}
                 <a 
@@ -1997,6 +1996,25 @@ export default function MapleMapClient() {
                       <p className="text-pink-100 text-xs font-semibold">MBTI, IQ, 돼지력, 미니게임 39종 무료!</p>
                     </div>
                     <div className="bg-white text-rose-600 w-8 h-8 rounded-full flex items-center justify-center font-black shadow-md group-hover:scale-110 transition-transform shrink-0">
+                      ➔
+                    </div>
+                  </div>
+                </a>
+
+                {/* 단풍 커뮤니티 크로스 프로모션 배너 (하단) */}
+                <a 
+                  href="/community"
+                  className="w-full bg-gradient-to-r from-emerald-500 to-teal-600 rounded-2xl p-4 shadow-lg shadow-emerald-500/20 hover:shadow-emerald-500/40 hover:-translate-y-1 transition-all group relative overflow-hidden mt-4 block"
+                >
+                  <div className="absolute -left-4 -top-4 w-24 h-24 bg-white/20 rounded-full blur-xl group-hover:bg-white/30 transition-colors"></div>
+                  <div className="relative z-10 flex items-center justify-between">
+                    <div>
+                      <h3 className="text-white font-black text-lg mb-1 flex items-center gap-2 tracking-tight">
+                        <span className="text-2xl group-hover:animate-bounce">🍁</span> 단풍 여행 커뮤니티
+                      </h3>
+                      <p className="text-emerald-100 text-xs font-semibold">지금 뜨는 단풍 명소 · 실시간 후기 보러가기</p>
+                    </div>
+                    <div className="bg-white text-emerald-700 w-8 h-8 rounded-full flex items-center justify-center font-black shadow-md group-hover:scale-110 transition-transform shrink-0">
                       ➔
                     </div>
                   </div>
