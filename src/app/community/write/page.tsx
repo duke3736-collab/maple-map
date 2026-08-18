@@ -6,6 +6,7 @@ import Link from 'next/link';
 import { addPost } from '@/lib/postsStore';
 import WordPressBanners from '@/components/WordPressBanners';
 import AdBanner from '@/components/AdBanner';
+import MapleShareButtons from '@/components/MapleShareButtons';
 
 const ADJECTIVES = ['행복한', '친절한', '날렵한', '똑똑한', '귀여운', '심각한', '신비로운', '빛나는', '피곤한', '배고픈', '열정적인', '즐거운'];
 const NOUNS = ['단풍나무', '은행나무', '억새', '핑크뮬리', '여행자', '캠퍼', '사진작가', '등산객', '대학생', '사자', '호랑이', '너구리'];
@@ -332,14 +333,8 @@ function WriteFormContent() {
 
       </form>
 
-      {/* ── 📱 소셜 미디어 공유 (원형 아이콘) ── */}
-      <div className="flex justify-center items-center gap-3 py-8">
-        <button onClick={() => {}} className="w-11 h-11 rounded-full bg-[#1877F2] flex items-center justify-center text-white font-bold text-xl hover:scale-110 transition shadow-lg">f</button>
-        <button onClick={() => {}} className="w-11 h-11 rounded-full bg-black flex items-center justify-center text-white font-black text-xl hover:scale-110 transition shadow-lg border border-slate-700">𝕏</button>
-        <button onClick={() => {}} className="w-11 h-11 rounded-full bg-[#00C300] flex items-center justify-center text-white font-black text-xl hover:scale-110 transition shadow-lg">L</button>
-        <button onClick={() => {}} className="w-11 h-11 rounded-full bg-[#03C75A] flex items-center justify-center text-white font-black text-xl hover:scale-110 transition shadow-lg">N</button>
-        <button onClick={() => {}} className="w-11 h-11 rounded-full bg-[#FEE500] flex items-center justify-center text-black font-black text-xl hover:scale-110 transition shadow-lg">K</button>
-      </div>
+      {/* ── 📱 소셜 미디어 공유 ── */}
+      <MapleShareButtons url="https://maple.weknews.com/community" title="단풍 커뮤니티 톡 | Maple Map 자유게시판" />
 
       {/* ── 🔗 자세히 알아보기 (Text AD Links) ── */}
       <div className="bg-white rounded-xl shadow-md overflow-hidden mb-8 border border-slate-200">

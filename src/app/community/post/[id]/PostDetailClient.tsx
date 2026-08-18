@@ -5,6 +5,7 @@ import Link from 'next/link';
 import { getStoredPosts, getPostById, incrementViews, addComment, PostItem } from '@/lib/postsStore';
 import AdBanner from '@/components/AdBanner';
 import WordPressBanners from '@/components/WordPressBanners';
+import MapleShareButtons from '@/components/MapleShareButtons';
 
 const COMMUNITY_SIDEBAR_SECTIONS = [
   {
@@ -322,14 +323,8 @@ export default function PostDetailClient({ postId, initialPost }: { postId: stri
           </div>
         </div>
 
-        {/* ── 📱 소셜 미디어 공유 (원형 아이콘) ── */}
-        <div className="flex justify-center items-center gap-3 py-8">
-          <button onClick={() => alert('페이스북 공유')} className="w-11 h-11 rounded-full bg-[#1877F2] flex items-center justify-center text-white font-bold text-xl hover:scale-110 transition shadow-lg">f</button>
-          <button onClick={() => alert('X 공유')} className="w-11 h-11 rounded-full bg-black flex items-center justify-center text-white font-black text-xl hover:scale-110 transition shadow-lg border border-slate-700">𝕏</button>
-          <button onClick={() => alert('라인 공유')} className="w-11 h-11 rounded-full bg-[#00C300] flex items-center justify-center text-white font-black text-xl hover:scale-110 transition shadow-lg">L</button>
-          <button onClick={() => alert('네이버 공유')} className="w-11 h-11 rounded-full bg-[#03C75A] flex items-center justify-center text-white font-black text-xl hover:scale-110 transition shadow-lg">N</button>
-          <button onClick={() => alert('카카오톡 공유')} className="w-11 h-11 rounded-full bg-[#FEE500] flex items-center justify-center text-black font-black text-xl hover:scale-110 transition shadow-lg">K</button>
-        </div>
+        {/* ── 📱 소셜 미디어 공유 ── */}
+        <MapleShareButtons />
 
         {/* ── 🔗 관련 링크 바로가기 (Text ADs) ── */}
         <div className="bg-white rounded-xl shadow-md overflow-hidden mb-8 border border-slate-200">
