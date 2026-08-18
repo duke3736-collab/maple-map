@@ -192,6 +192,10 @@ export default function PostDetailClient({ postId, initialPost }: { postId: stri
             <span>★ 즐겨찾기</span>
           </div>
           <div className="flex items-center gap-3">
+            <Link href="/" className="hover:text-amber-50 transition flex items-center gap-1">
+              🗺️ 지도
+            </Link>
+            <span>·</span>
             <Link href="/community" className="hover:text-amber-50 transition">
               목록
             </Link>

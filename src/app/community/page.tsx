@@ -165,6 +165,12 @@ export default function CommunityPage() {
           </div>
           <div className="flex items-center gap-3">
             <Link
+              href="/"
+              className="bg-[#3e2a14] hover:bg-[#4d3620] border border-[#5e432a] text-amber-200 text-sm font-bold px-4 py-2.5 rounded-xl transition flex items-center gap-1.5"
+            >
+              <span>🗺️</span> 지도로
+            </Link>
+            <Link
               href="/community/write"
               className="bg-orange-600 hover:bg-orange-500 text-white text-sm font-bold px-5 py-2.5 rounded-xl shadow-lg hover:shadow-blue-500/25 transition transform hover:-translate-y-0.5 flex items-center gap-1.5"
             >
