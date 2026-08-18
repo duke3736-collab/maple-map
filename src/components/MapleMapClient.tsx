@@ -1370,12 +1370,20 @@ export default function MapleMapClient() {
           {/* 모바일 상단 고정 헤더 */}
           <header className="sticky top-0 w-full z-50 bg-slate-950/85 backdrop-blur-xl border-b border-slate-900/50 flex justify-between items-center h-16 px-4 shrink-0">
             <span className="font-black italic text-xl tracking-tighter text-transparent bg-clip-text bg-gradient-to-r from-orange-400 via-amber-300 to-red-400 drop-shadow-[0_2px_8px_rgba(249,115,22,0.3)]">MAPLE MAP</span>
-            <button 
-              onClick={() => setIsInquiryModalOpen(true)}
-              className="bg-slate-900 border border-slate-800 hover:border-slate-700 text-slate-300 hover:text-white px-3.5 py-1.5 rounded-full text-xs font-bold transition-all"
-            >
-              제안 및 문의 💡
-            </button>
+            <div className="flex items-center gap-2">
+              <a 
+                href="/community"
+                className="bg-orange-500/10 border border-orange-500/30 text-orange-400 hover:bg-orange-500 hover:text-white px-3.5 py-1.5 rounded-full text-xs font-bold transition-all"
+              >
+                커뮤니티 💬
+              </a>
+              <button 
+                onClick={() => setIsInquiryModalOpen(true)}
+                className="bg-slate-900 border border-slate-800 hover:border-slate-700 text-slate-300 hover:text-white px-3.5 py-1.5 rounded-full text-xs font-bold transition-all"
+              >
+                제안 및 문의 💡
+              </button>
+            </div>
           </header>
 
           {/* 히어로 섹션 */}
@@ -1764,12 +1772,20 @@ export default function MapleMapClient() {
           <h1 className="text-xl md:text-3xl font-black text-white tracking-tight flex items-center gap-2">
             <span>🍁</span> Maple Map
           </h1>
-          <button 
-            onClick={() => setIsInquiryModalOpen(true)}
-            className="bg-slate-800/80 border border-slate-700 hover:bg-slate-700 hover:border-slate-600 text-slate-300 hover:text-white px-3.5 py-1.5 rounded-full text-xs font-bold transition-all flex items-center gap-1 active:scale-95 shrink-0"
-          >
-            <span>제안 및 문의</span><span>💡</span>
-          </button>
+          <div className="flex items-center gap-2 shrink-0">
+            <a 
+              href="/community"
+              className="bg-orange-500/10 border border-orange-500/30 text-orange-400 hover:bg-orange-500 hover:text-white px-3.5 py-1.5 rounded-full text-xs font-bold transition-all flex items-center gap-1 active:scale-95 shrink-0"
+            >
+              <span>커뮤니티</span><span>💬</span>
+            </a>
+            <button 
+              onClick={() => setIsInquiryModalOpen(true)}
+              className="bg-slate-800/80 border border-slate-700 hover:bg-slate-700 hover:border-slate-600 text-slate-300 hover:text-white px-3.5 py-1.5 rounded-full text-xs font-bold transition-all flex items-center gap-1 active:scale-95 shrink-0"
+            >
+              <span>제안 및 문의</span><span>💡</span>
+            </button>
+          </div>
         </div>
 
         <div className="relative mb-4 w-full shrink-0">
